@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-
-	"github.com/joho/godotenv"
 )
 
 // Config contiene la configuración de la aplicación.
@@ -17,17 +15,11 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
-
-	AWSAccessKey string
-	AWSSecretKey string
-	AWSS3Bucket  string
 }
 
-// Load carga la configuración desde .env y variables de entorno.
-// Si existe .env, lo carga; si no, usa solo las env vars (útil en Docker).
+// Load carga la configuración desde variables de entorno.
+// En Docker, las variables se configuran via env_file o environment en docker-compose.
 func Load() (*Config, error) {
-	_ = godotenv.Load() // Ignora error si .env no existe
-
 	cfg := &Config{
 		Port: getEnv("PORT", "3000"),
 
@@ -36,10 +28,6 @@ func Load() (*Config, error) {
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "cloudflax"),
-
-		AWSAccessKey: getEnv("AWS_ACCESS_KEY", ""),
-		AWSSecretKey: getEnv("AWS_SECRET_KEY", ""),
-		AWSS3Bucket:   getEnv("AWS_S3_BUCKET", ""),
 	}
 
 	if err := cfg.Validate(); err != nil {
