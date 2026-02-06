@@ -11,11 +11,13 @@
       ],
       "settings": {
         "go.useLanguageServer": true,
-        "go.toolsManagement.autoUpdate": true
+        "go.toolsManagement.autoUpdate": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": ["--config", ".golangci.yml"]
       }
     }
   },
   "forwardPorts": [3000, 5432],
-  "postCreateCommand": "go mod tidy",
+  "postCreateCommand": "go mod tidy && sh scripts/install-hooks.sh",
   "remoteUser": "root"
 }
