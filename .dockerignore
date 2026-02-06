@@ -1,0 +1,8 @@
+.git
+.gitignore
+tmp
+vendor
+node_modules
+*.md
+.env
+.env.*

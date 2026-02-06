@@ -1,0 +1,21 @@
+{
+  "name": "Cloudflax Backend",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "go.toolsManagement.autoUpdate": true
+      }
+    }
+  },
+  "forwardPorts": [3000, 5432],
+  "postCreateCommand": "go mod tidy",
+  "remoteUser": "root"
+}
