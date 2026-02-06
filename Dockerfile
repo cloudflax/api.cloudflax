@@ -7,8 +7,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar air para hot reload en desarrollo
-RUN go install github.com/air-verse/air@latest
+# Instalar herramientas de desarrollo
+RUN go install github.com/air-verse/air@latest \
+    && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 # Copiar archivos de dependencias
 COPY go.mod ./
