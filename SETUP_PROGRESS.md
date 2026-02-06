@@ -9,7 +9,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 ### Corto plazo (setup inicial)
 
 - [x] **1. Estructura de carpetas** — `cmd/api/`, `internal/app/`, `internal/handlers/`
-- [ ] **2. Carga de `.env`** — godotenv o envconfig + validación al arranque
+- [x] **2. Carga de `.env`** — godotenv + validación en internal/config
 - [ ] **3. Makefile** — build, run, test, lint, docker-up, docker-down
 - [ ] **4. golangci-lint** — linter + pre-commit o integración en devcontainer
 - [ ] **5. Health check con DB** — `/health` que verifique conexión a PostgreSQL
@@ -31,5 +31,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 2. Carga de `.env`
+- **Siguiente paso:** 3. Makefile
 - **Última actualización:** 2026-02-06

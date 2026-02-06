@@ -2,19 +2,19 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/cloudflax/api.cloudflax/internal/app"
+	"github.com/cloudflax/api.cloudflax/internal/config"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Configuración inválida: %v", err)
 	}
 
-	log.Printf("Server starting on port %s", port)
-	if err := app.Run(port); err != nil {
+	log.Printf("Server starting on port %s", cfg.Port)
+	if err := app.Run(cfg); err != nil {
 		log.Fatal(err)
 	}
 }
