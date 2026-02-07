@@ -84,6 +84,21 @@ func TestGetUser_NotFound(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 }
 
+func TestGetUser_InvalidUUID(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := fiber.New()
+	app.Get("/users/:id", handler.GetUser)
+
+	// Malformed UUID (extra character in last segment) - previously returned 500
+	req := httptest.NewRequest("GET", "/users/a5a10f19-99e6-4ff1-bea4-b2de85f77d061", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+}
+
 func TestGetUser_Found(t *testing.T) {
 	handler := setupUserHandlerTest(t)
 

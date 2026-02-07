@@ -1,6 +1,10 @@
 package user
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/google/uuid"
+)
 
 // Service handles user business logic.
 type Service struct {
@@ -18,7 +22,11 @@ func (s *Service) ListUser() ([]User, error) {
 }
 
 // GetUser returns a user by ID.
+// Returns ErrNotFound for invalid UUID format or when the user does not exist.
 func (s *Service) GetUser(id string) (*User, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrNotFound
+	}
 	return s.repository.GetUser(id)
 }
 
@@ -38,6 +46,9 @@ func (s *Service) CreateUser(name, email, password string) (*User, error) {
 
 // UpdateUser updates an existing user by ID. Only name and password can be updated.
 func (s *Service) UpdateUser(id string, name *string, password *string) (*User, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrNotFound
+	}
 	user, err := s.repository.GetUser(id)
 	if err != nil {
 		return nil, err
@@ -58,5 +69,8 @@ func (s *Service) UpdateUser(id string, name *string, password *string) (*User, 
 
 // DeleteUser soft-deletes a user by ID.
 func (s *Service) DeleteUser(id string) error {
+	if _, err := uuid.Parse(id); err != nil {
+		return ErrNotFound
+	}
 	return s.repository.Delete(id)
 }
