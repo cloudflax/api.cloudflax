@@ -8,21 +8,28 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ### Corto plazo (setup inicial)
 
-_(Completado)_
+- [ ] **1. POST /users** — Crear usuario
+- [ ] **2. CORS** — Headers para frontend
+- [ ] **3. Request ID** — X-Request-ID en cada request para tracing
+- [ ] **4. Validación de entrada** — Validar body y params (go-playground/validator)
+- [ ] **5. Error handler centralizado** — Respuestas de error consistentes
+- [ ] **6. CRUD completo Users** — PUT, DELETE (completar con POST del punto 1)
 
 ### Medio plazo
 
-- [ ] **1. CI/CD** — GitHub Actions o GitLab CI
+- [ ] **7. CI/CD** — GitHub Actions o GitLab CI
+- [ ] **8. Paginación** — ?page=1&limit=10 en listas
 
 ### Largo plazo
 
-- [ ] **2. Métricas y tracing** — Prometheus, OpenTelemetry
-- [ ] **3. Rate limiting y CORS** — seguridad
-- [ ] **4. Documentación API** — OpenAPI/Swagger
+- [ ] **9. Rate limiting** — Límite de requests por IP
+- [ ] **10. API versioning** — Rutas bajo /api/v1/
+- [ ] **11. Métricas y tracing** — Prometheus, OpenTelemetry
+- [ ] **12. Documentación API** — OpenAPI/Swagger
 
 ---
 
 ## Estado actual
 
-- **Siguiente paso:** 1. CI/CD
+- **Siguiente paso:** 1. POST /users
 - **Última actualización:** 2026-02-07
