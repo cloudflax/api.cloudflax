@@ -30,50 +30,86 @@
 
 ---
 
+## 📁 Estructura del Proyecto
+
+```
+├── cmd/api/           # Entry point de la API
+├── internal/
+│   ├── app/           # Configuración Fiber y rutas
+│   ├── config/        # Carga y validación de variables de entorno
+│   ├── db/            # Conexión y verificaciones PostgreSQL
+│   └── handlers/      # Handlers HTTP por ruta
+├── postgres/          # Configuración SSL y certificados
+├── scripts/           # Scripts de utilidad (certs, hooks)
+├── Makefile           # Comandos: build, run, test, lint
+└── docker-compose.yml
+```
+
+---
+
 ## 🚀 Instalación y Configuración
 
 ### 1. Clonar el repositorio
+
 ```bash
 git clone https://github.com/cloudflax/api.cloudflax.git
 cd api.cloudflax
 ```
 
-### 2. Entorno de Desarrollo (Recomendado)
+### 2. Certificados SSL para PostgreSQL
 
-Este proyecto incluye soporte para **VS Code DevContainers**. Para usarlo:
-
-1. Asegúrate de tener instalado **Docker** y la extensión **Dev Containers** en VS Code.
-2. Al abrir la carpeta en VS Code, acepta la opción `Reopen in Container`.
-3. El entorno configurará automáticamente **Go** y las dependencias necesarias dentro de un contenedor dedicado.
-
-### 3. Variables de Entorno
-
-Configura un archivo `.env` en la raíz del proyecto con los siguientes parámetros:
-
-```env
-# Configuración de la Base de Datos
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=password
-DB_NAME=cloudflax
-
-# Configuración de AWS
-AWS_ACCESS_KEY=
-AWS_SECRET_KEY=
-AWS_S3_BUCKET=
-```
-
-### 4. Ejecución manual
-
-Si prefieres ejecutarlo fuera de Docker, sigue estos pasos:
+Antes del primer `docker-compose up`, genera los certificados:
 
 ```bash
-# Descargar y limpiar dependencias
-go mod tidy
+make db-certs
+```
 
-# Ejecutar la aplicación
-go run main.go
+Ver [postgres/README.md](postgres/README.md) para más detalles.
+
+### 3. Entorno de Desarrollo (DevContainer)
+
+Este proyecto usa **Dev Containers** (Cursor / VS Code):
+
+1. Instala **Docker** y la extensión **Dev Containers**.
+2. Abre la carpeta y acepta `Reopen in Container`.
+3. El contenedor incluye: Go, Air (hot reload), golangci-lint. El hook pre-commit ejecuta `make lint` antes de cada commit.
+
+### 4. Variables de Entorno
+
+En Docker, las variables se configuran en `docker-compose.yml`. Las variables se cargan desde el entorno. En Docker, vienen de `docker-compose`. Para desarrollo local, usa `.env.example` como referencia:
+
+| Variable      | Descripción        | Default    |
+|---------------|--------------------|------------|
+| `PORT`        | Puerto de la API   | `3000`     |
+| `DB_HOST`     | Host de PostgreSQL | `db`       |
+| `DB_PORT`     | Puerto de PostgreSQL| `5432`    |
+| `DB_USER`     | Usuario DB         | `postgres` |
+| `DB_PASSWORD` | Contraseña DB      | —          |
+| `DB_NAME`     | Nombre de la DB    | `cloudflax`|
+| `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `require` |
+
+### 5. Comandos (dentro del DevContainer)
+
+```bash
+make build    # Compilar
+make run      # Ejecutar (requiere variables de entorno)
+make test     # Tests
+make lint     # golangci-lint
+```
+
+### 6. Endpoints
+
+| Método | Ruta     | Descripción                           |
+|--------|----------|---------------------------------------|
+| GET    | `/`      | Info de la API                        |
+| GET    | `/health`| Health check (verifica conexión DB)   |
+
+### 7. Ejecución manual (sin Docker)
+
+```bash
+go mod tidy
+export DB_HOST=localhost DB_PASSWORD=postgres  # y el resto de vars
+make run
 ```
 
 ## 🎯 Roadmap del Proyecto
