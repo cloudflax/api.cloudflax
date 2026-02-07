@@ -22,10 +22,10 @@ func ListUsers(c fiber.Ctx) error {
 	})
 }
 
-// GetUser obtiene un usuario por ID con sus posts.
+// GetUser obtiene un usuario por ID.
 func GetUser(c fiber.Ctx) error {
 	var user models.User
-	if err := db.DB.Preload("Posts").First(&user, "id = ?", c.Params("id")).Error; err != nil {
+	if err := db.DB.First(&user, "id = ?", c.Params("id")).Error; err != nil {
 		slog.Debug("get user not found", "id", c.Params("id"), "error", err)
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "usuario no encontrado",

@@ -14,8 +14,6 @@ type User struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-
-	Posts []Post `gorm:"foreignKey:UserID" json:"posts,omitempty"`
 }
 
 // TableName sobrescribe el nombre de la tabla.

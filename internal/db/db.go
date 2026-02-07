@@ -35,7 +35,6 @@ func Init(cfg *config.Config) error {
 func RunMigrations() error {
 	return DB.AutoMigrate(
 		&models.User{},
-		&models.Post{},
 	)
 }
 

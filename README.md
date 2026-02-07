@@ -41,7 +41,7 @@
 │   ├── handlers/      # Handlers HTTP por ruta
 │   ├── logger/        # slog (logging estructurado JSON)
 │   ├── middleware/    # Logger de requests
-│   └── models/        # Modelos GORM (User, Post)
+│   └── models/        # Modelos GORM (User)
 ├── postgres/          # Configuración SSL y certificados
 ├── scripts/           # Scripts de utilidad (certs, hooks)
 ├── Makefile           # Comandos: build, run, test, lint
@@ -109,7 +109,7 @@ make lint       # golangci-lint
 | GET    | `/`        | Info de la API                           |
 | GET    | `/health`  | Health check (verifica conexión DB)      |
 | GET    | `/users`   | Lista usuarios                           |
-| GET    | `/users/:id` | Usuario por ID con sus posts (Preload) |
+| GET    | `/users/:id` | Usuario por ID |
 
 ### 7. Ejecución manual (sin Docker)
 
