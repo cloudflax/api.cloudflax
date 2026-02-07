@@ -6,7 +6,7 @@ db-certs:
 
 # Compilar la aplicación
 build:
-	go build -buildvcs=false -o ./tmp/main ./cmd/api
+	go build -o ./tmp/main ./cmd/api
 
 # Ejecutar la aplicación (requiere variables de entorno)
 run: build
