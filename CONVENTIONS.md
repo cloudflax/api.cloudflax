@@ -5,6 +5,7 @@ Reglas para mantener consistencia. En este archivo van:
 - **Naming** — Cómo nombrar funciones, variables, archivos y recursos.
 - **Estructura de carpetas** — Organización, rutas y layout de directorios.
 - **Estilo de código** — Formato, imports, comentarios y buenas prácticas de sintaxis.
+- **Formato de API** — Respuestas JSON y códigos de estado por operación.
 
 ---
 
@@ -44,3 +45,39 @@ Reglas para mantener consistencia. En este archivo van:
 - **Imports:** Ordenar: estándar → terceros → internal. Agrupar con líneas en blanco.
 - **Variables:** camelCase. Constantes y tipos exportados: PascalCase.
 - **Comentarios:** En inglés para código. En español para documentación de usuario.
+
+---
+
+## Formato de respuesta JSON
+
+**Éxito:**
+```json
+{
+  "data": { ... },
+  "message": "opcional"
+}
+```
+
+**Error:**
+```json
+{
+  "error": "Descripción del error",
+  "code": "ERROR_CODE",
+  "status": 400
+}
+```
+
+Para listas paginadas, incluir `meta` con `page`, `limit`, `total`.
+
+---
+
+## Status codes por operación
+
+| Operación | Éxito | Errores frecuentes |
+|-----------|-------|---------------------|
+| List | 200 | 400 (query inválida) |
+| Get by ID | 200 | 404 (no encontrado) |
+| Create | 201 | 400 (validación), 409 (duplicado) |
+| Update | 200 | 400 (validación), 404 (no encontrado) |
+| Delete | 200 o 204 | 404 (no encontrado) |
+| Login | 200 | 401 (credenciales inválidas) |
