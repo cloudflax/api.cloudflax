@@ -111,6 +111,18 @@ Response ← Handler ← Service ← Repository
 
 ---
 
+## Middleware stack
+
+Orden de ejecución (de fuera hacia dentro):
+
+1. **Logger** — Registra request, método, path, duración
+2. **Request ID** — Añade `X-Request-ID` para tracing
+3. **Recovery** — Panic recovery, evita caída del servidor
+4. **CORS** — Headers para consumo desde frontend
+5. **Auth** — Validación JWT en rutas protegidas (solo donde aplique)
+
+---
+
 ## Manejo de errores
 
 - **Service/Repository:** Devuelven errores de dominio (p. ej. `ErrNotFound`, `ErrDuplicateEmail`).
@@ -125,6 +137,15 @@ Response ← Handler ← Service ← Repository
 - **Públicas:** `/`, `/health`, `/auth/login`
 - **Protegidas:** `/users`, `/users/:id`, `/users/me`
 - **Prefijo (futuro):** `/api/v1/` para versionado
+
+---
+
+## Estrategia de testing
+
+- **Unit tests:** Handler, Service, Repository por separado. Usar mocks para dependencias.
+- **Integration tests:** Flujo completo con DB real (PostgreSQL) o SQLite in-memory para tests rápidos.
+- **Ubicación:** `*_test.go` junto al archivo bajo test.
+- **DB en tests:** `internal/db/testing.go` provee helpers para tests con SQLite o PostgreSQL.
 
 ---
 
