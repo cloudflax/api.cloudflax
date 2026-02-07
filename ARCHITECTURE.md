@@ -111,6 +111,14 @@ Response ← Handler ← Service ← Repository
 
 ---
 
+## Manejo de errores
+
+- **Service/Repository:** Devuelven errores de dominio (p. ej. `ErrNotFound`, `ErrDuplicateEmail`).
+- **Handler:** Captura errores del service, mapea a códigos HTTP y formatea la respuesta.
+- **shared/errors:** Errores comunes y helpers para respuestas HTTP consistentes (futuro).
+
+---
+
 ## Rutas
 
 - **server/routes.go:** Monta las rutas de cada feature (`user.Routes()`, `product.Routes()`, etc.)
