@@ -12,7 +12,7 @@ func Run(cfg *config.Config) error {
 
 	// Rutas
 	app.Get("/", handlers.Home)
-	app.Get("/health", handlers.Health)
+	app.Get("/health", handlers.Health(cfg))
 
 	return app.Listen(":" + cfg.Port)
 }

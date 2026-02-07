@@ -15,6 +15,7 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+	DBSSLMode  string // require, verify-ca, verify-full, disable
 }
 
 // Load carga la configuración desde variables de entorno.
@@ -28,6 +29,7 @@ func Load() (*Config, error) {
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "cloudflax"),
+		DBSSLMode:  getEnv("DB_SSL_MODE", "require"),
 	}
 
 	if err := cfg.Validate(); err != nil {

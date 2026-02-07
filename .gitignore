@@ -15,6 +15,9 @@ dist/
 .env.local
 .env.*.local
 
+# PostgreSQL SSL certs (generados por scripts/generate-db-certs.sh)
+postgres/certs/
+
 # IDE
 .idea/
 .vscode/

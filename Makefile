@@ -1,4 +1,8 @@
-.PHONY: build run test lint
+.PHONY: build run test lint db-certs
+
+# Generar certificados SSL para PostgreSQL (requerido antes del primer docker-compose up)
+db-certs:
+	@sh scripts/generate-db-certs.sh
 
 # Compilar la aplicación
 build:

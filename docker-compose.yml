@@ -1,4 +1,22 @@
 services:
+  # Genera certificados SSL antes de que arranque PostgreSQL.
+  # Se ejecuta una vez; db espera a que termine.
+  certs-init:
+    image: alpine:3.20
+    volumes:
+      - ./postgres/certs:/certs
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache openssl
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout /certs/server.key -out /certs/server.crt -subj "/CN=db" -days 365
+        chown 70:70 /certs/server.key /certs/server.crt
+        chmod 600 /certs/server.key
+        chmod 644 /certs/server.crt
+        echo "Certificados generados"
+    restart: "no"
+
   app:
     build:
       context: .
@@ -15,6 +33,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=cloudflax
+      - DB_SSL_MODE=require
     depends_on:
       db:
         condition: service_healthy
@@ -24,12 +43,21 @@ services:
     image: postgres:16-alpine
     ports:
       - "5432:5432"
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/certs/server.crt
+      -c ssl_key_file=/certs/server.key
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cloudflax
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/certs:/certs:ro
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

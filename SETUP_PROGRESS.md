@@ -12,7 +12,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 - [x] **2. Carga de `.env`** — godotenv + validación en internal/config
 - [x] **3. Makefile** — build, run, test, lint (devcontainer)
 - [x] **4. golangci-lint** — linter + IDE + pre-commit (devcontainer)
-- [ ] **5. Health check con DB** — `/health` que verifique conexión a PostgreSQL
+- [x] **5. Health check con DB** — `/health` verifica conexión a PostgreSQL
 
 ### Medio plazo
 
@@ -31,5 +31,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 5. Health check con DB
+- **Siguiente paso:** 6. Migraciones de base de datos
 - **Última actualización:** 2026-02-06
