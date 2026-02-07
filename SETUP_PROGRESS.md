@@ -17,7 +17,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 ### Medio plazo
 
 - [x] **6. Migraciones de base de datos** — GORM AutoMigrate + modelos User, Post
-- [ ] **7. Logging estructurado** — slog o zerolog
+- [x] **7. Logging estructurado** — slog (JSON, middleware, LOG_LEVEL)
 - [ ] **8. Tests unitarios** — cobertura básica
 - [ ] **9. CI/CD** — GitHub Actions o GitLab CI
 
@@ -31,5 +31,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 7. Logging estructurado
+- **Siguiente paso:** 8. Tests unitarios
 - **Última actualización:** 2026-02-06

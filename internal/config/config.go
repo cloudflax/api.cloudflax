@@ -8,7 +8,8 @@ import (
 
 // Config contiene la configuración de la aplicación.
 type Config struct {
-	Port string
+	Port     string
+	LogLevel string // DEBUG, INFO, WARN, ERROR
 
 	DBHost     string
 	DBPort     int
@@ -22,7 +23,8 @@ type Config struct {
 // En Docker, las variables se configuran via env_file o environment en docker-compose.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port: getEnv("PORT", "3000"),
+		Port:     getEnv("PORT", "3000"),
+		LogLevel: getEnv("LOG_LEVEL", "INFO"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnvInt("DB_PORT", 5432),

@@ -1,25 +1,32 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/cloudflax/api.cloudflax/internal/app"
 	"github.com/cloudflax/api.cloudflax/internal/config"
 	"github.com/cloudflax/api.cloudflax/internal/db"
+	"github.com/cloudflax/api.cloudflax/internal/logger"
 )
 
 func main() {
+	logger.Init(os.Getenv("LOG_LEVEL"))
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Configuración inválida: %v", err)
+		slog.Error("configuración inválida", "error", err)
+		os.Exit(1)
 	}
 
 	if err := db.Init(cfg); err != nil {
-		log.Fatalf("Base de datos: %v", err)
+		slog.Error("base de datos", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("Server starting on port %s", cfg.Port)
+	slog.Info("server starting", "port", cfg.Port)
 	if err := app.Run(cfg); err != nil {
-		log.Fatal(err)
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
 	}
 }

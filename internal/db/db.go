@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/cloudflax/api.cloudflax/internal/config"
 	"github.com/cloudflax/api.cloudflax/internal/models"
@@ -26,6 +27,7 @@ func Init(cfg *config.Config) error {
 		return fmt.Errorf("migraciones: %w", err)
 	}
 
+	slog.Info("database connected", "host", cfg.DBHost, "dbname", cfg.DBName)
 	return nil
 }
 

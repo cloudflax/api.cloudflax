@@ -39,6 +39,8 @@
 │   ├── config/        # Carga y validación de variables de entorno
 │   ├── db/            # GORM + conexión PostgreSQL + migraciones
 │   ├── handlers/      # Handlers HTTP por ruta
+│   ├── logger/        # slog (logging estructurado JSON)
+│   ├── middleware/    # Logger de requests
 │   └── models/        # Modelos GORM (User, Post)
 ├── postgres/          # Configuración SSL y certificados
 ├── scripts/           # Scripts de utilidad (certs, hooks)
@@ -88,6 +90,7 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_PASSWORD` | Contraseña DB      | —          |
 | `DB_NAME`     | Nombre de la DB    | `cloudflax`|
 | `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `require` |
+| `LOG_LEVEL`   | Nivel de log: `DEBUG`, `INFO`, `WARN`, `ERROR`            | `INFO`    |
 
 ### 5. Comandos (dentro del DevContainer)
 

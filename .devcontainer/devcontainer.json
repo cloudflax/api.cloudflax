@@ -13,7 +13,7 @@
         "go.useLanguageServer": true,
         "go.toolsManagement.autoUpdate": true,
         "go.lintTool": "golangci-lint",
-        "go.lintFlags": ["--config", ".golangci.yml"]
+        "go.lintFlags": ["--config", "/app/.golangci.yml"]
       }
     }
   },
