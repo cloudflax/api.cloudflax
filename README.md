@@ -19,7 +19,7 @@
 
 * **Lenguaje:** [Go (Golang)](https://go.dev/)
 * **Framework Web:** [Fiber](https://gofiber.io/)
-* **Base de Datos:** PostgreSQL
+* **Base de Datos:** PostgreSQL + [GORM](https://gorm.io/) (ORM)
 * **Contenedores:** Docker & **DevContainers** (Entorno de desarrollo estandarizado).
 * **Infraestructura (AWS):**
     * **EC2:** Hosting del servidor principal.
@@ -37,8 +37,9 @@
 ├── internal/
 │   ├── app/           # Configuración Fiber y rutas
 │   ├── config/        # Carga y validación de variables de entorno
-│   ├── db/            # Conexión y verificaciones PostgreSQL
-│   └── handlers/      # Handlers HTTP por ruta
+│   ├── db/            # GORM + conexión PostgreSQL + migraciones
+│   ├── handlers/      # Handlers HTTP por ruta
+│   └── models/        # Modelos GORM (User, Post)
 ├── postgres/          # Configuración SSL y certificados
 ├── scripts/           # Scripts de utilidad (certs, hooks)
 ├── Makefile           # Comandos: build, run, test, lint
@@ -99,10 +100,12 @@ make lint     # golangci-lint
 
 ### 6. Endpoints
 
-| Método | Ruta     | Descripción                           |
-|--------|----------|---------------------------------------|
-| GET    | `/`      | Info de la API                        |
-| GET    | `/health`| Health check (verifica conexión DB)   |
+| Método | Ruta       | Descripción                              |
+|--------|------------|------------------------------------------|
+| GET    | `/`        | Info de la API                           |
+| GET    | `/health`  | Health check (verifica conexión DB)      |
+| GET    | `/users`   | Lista usuarios                           |
+| GET    | `/users/:id` | Usuario por ID con sus posts (Preload) |
 
 ### 7. Ejecución manual (sin Docker)
 

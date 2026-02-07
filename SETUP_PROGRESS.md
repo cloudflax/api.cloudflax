@@ -16,7 +16,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ### Medio plazo
 
-- [ ] **6. Migraciones de base de datos** — golang-migrate o goose
+- [x] **6. Migraciones de base de datos** — GORM AutoMigrate + modelos User, Post
 - [ ] **7. Logging estructurado** — slog o zerolog
 - [ ] **8. Tests unitarios** — cobertura básica
 - [ ] **9. CI/CD** — GitHub Actions o GitLab CI
@@ -31,5 +31,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 6. Migraciones de base de datos
+- **Siguiente paso:** 7. Logging estructurado
 - **Última actualización:** 2026-02-06
