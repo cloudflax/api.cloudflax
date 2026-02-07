@@ -39,6 +39,17 @@ make lint       # Linter (golangci-lint)
 
 ---
 
+## Cuándo consultar cada archivo
+
+| Situación | Archivo |
+|-----------|---------|
+| Añadir/modificar un feature, entender capas o flujo | ARCHITECTURE.md |
+| Nombrar funciones, archivos, variables | CONVENTIONS.md |
+| Saber qué falta por hacer | SETUP_PROGRESS.md |
+| Información general del proyecto | README.md |
+
+---
+
 ## Referencias
 
 - **ARCHITECTURE.md**
