@@ -50,6 +50,17 @@ make lint       # Linter (golangci-lint)
 
 ---
 
+## Workflow para añadir un feature nuevo
+
+1. **Crear carpeta** — `internal/{recurso}/` (singular, lowercase).
+2. **Archivos mínimos** — `model.go`, `repository.go`, `service.go`, `handler.go`, `routes.go`.
+3. **Nombres CRUD** — `List{Resource}`, `Get{Resource}`, `Create{Resource}`, etc. (ver CONVENTIONS.md).
+4. **Registrar rutas** — En `internal/server/routes.go` montar `{recurso}.Routes()`.
+5. **Tests** — Añadir tests para handler, service y repository.
+6. **Migraciones** — Si hay modelos nuevos, añadir migración en `internal/db/`.
+
+---
+
 ## Referencias
 
 - **ARCHITECTURE.md**
