@@ -42,7 +42,8 @@ func TestListUsers_Empty(t *testing.T) {
 func TestListUsers_WithData(t *testing.T) {
 	setupUsersTest(t)
 
-	user := models.User{Name: "Test User"}
+	user := models.User{Name: "Test User", Email: "test@example.com"}
+	require.NoError(t, user.SetPassword("secret123"))
 	require.NoError(t, db.DB.Create(&user).Error)
 
 	app := fiber.New()
@@ -81,7 +82,8 @@ func TestGetUser_NotFound(t *testing.T) {
 func TestGetUser_Found(t *testing.T) {
 	setupUsersTest(t)
 
-	user := models.User{Name: "Jane"}
+	user := models.User{Name: "Jane", Email: "jane@example.com"}
+	require.NoError(t, user.SetPassword("secret123"))
 	require.NoError(t, db.DB.Create(&user).Error)
 
 	app := fiber.New()
