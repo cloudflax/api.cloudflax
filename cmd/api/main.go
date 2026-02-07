@@ -16,17 +16,17 @@ func main() {
 
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("configuración inválida", "error", err)
+		slog.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
 
 	if err := database.Init(cfg); err != nil {
-		slog.Error("base de datos", "error", err)
+		slog.Error("database", "error", err)
 		os.Exit(1)
 	}
 
 	if err := database.RunMigrations(&user.User{}); err != nil {
-		slog.Error("migraciones", "error", err)
+		slog.Error("migrations", "error", err)
 		os.Exit(1)
 	}
 

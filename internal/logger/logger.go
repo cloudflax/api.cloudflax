@@ -5,9 +5,9 @@ import (
 	"os"
 )
 
-// Init configura slog como logger por defecto.
-// Usa JSON en producción (stdout) y permite LOG_LEVEL (DEBUG, INFO, WARN, ERROR).
-// Llamar al inicio del programa para que todos los logs usen este formato.
+// Init configures slog as the default logger.
+// Uses JSON in production (stdout) and supports LOG_LEVEL (DEBUG, INFO, WARN, ERROR).
+// Call at program startup so all logs use this format.
 func Init(logLevel string) {
 	if logLevel == "" {
 		logLevel = "INFO"

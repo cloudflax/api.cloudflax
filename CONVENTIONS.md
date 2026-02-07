@@ -44,7 +44,7 @@ Reglas para mantener consistencia. En este archivo van:
 
 - **Imports:** Ordenar: estándar → terceros → internal. Agrupar con líneas en blanco.
 - **Variables:** camelCase. Constantes y tipos exportados: PascalCase.
-- **Comentarios:** En inglés para código. En español para documentación de usuario.
+- **Comentarios:** Siempre en inglés. Todo el código fuente debe estar íntegramente en inglés.
 
 ### Nombres descriptivos (Clean Code)
 

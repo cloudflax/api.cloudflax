@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// Config contiene la configuración de la aplicación.
+// Config holds the application configuration.
 type Config struct {
 	Port     string
 	LogLevel string // DEBUG, INFO, WARN, ERROR
@@ -19,8 +19,8 @@ type Config struct {
 	DBSSLMode  string // require, verify-ca, verify-full, disable
 }
 
-// Load carga la configuración desde variables de entorno.
-// En Docker, las variables se configuran via env_file o environment en docker-compose.
+// Load loads the configuration from environment variables.
+// In Docker, variables are configured via env_file or environment in docker-compose.
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:     getEnv("PORT", "3000"),
@@ -41,19 +41,19 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// Validate verifica que la configuración obligatoria esté presente.
+// Validate verifies that required configuration is present.
 func (c *Config) Validate() error {
 	if c.Port == "" {
-		return fmt.Errorf("PORT es obligatorio")
+		return fmt.Errorf("PORT is required")
 	}
 	if c.DBHost == "" {
-		return fmt.Errorf("DB_HOST es obligatorio")
+		return fmt.Errorf("DB_HOST is required")
 	}
 	if c.DBUser == "" {
-		return fmt.Errorf("DB_USER es obligatorio")
+		return fmt.Errorf("DB_USER is required")
 	}
 	if c.DBName == "" {
-		return fmt.Errorf("DB_NAME es obligatorio")
+		return fmt.Errorf("DB_NAME is required")
 	}
 	return nil
 }

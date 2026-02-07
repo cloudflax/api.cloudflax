@@ -29,7 +29,7 @@ make lint       # Linter (golangci-lint)
 ## Convenciones generales
 
 - **Clean code y buenas prácticas:** Siempre aplicar en el código que escribas.
-- **Idioma:** Código en inglés (nombres, variables, comentarios). Documentación y mensajes al usuario en español.
+- **Idioma:** Todo el código fuente en inglés (nombres, variables, comentarios, mensajes de error, logs). La única comunicación en español será el chat con el usuario.
 - **Tests:** Añadir o actualizar tests para el código que modifiques o crees.
 - **Imports:** Ordenar: estándar → terceros → internal. Agrupar con líneas en blanco.
 - **Errores:** Usar `fmt.Errorf` con `%w` para envolver errores. No ignorar errores con `_`.
