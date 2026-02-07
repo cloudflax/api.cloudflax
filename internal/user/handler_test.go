@@ -16,16 +16,16 @@ func setupUserHandlerTest(t *testing.T) *Handler {
 	t.Helper()
 	require.NoError(t, database.InitForTesting())
 	require.NoError(t, database.RunMigrations(&User{}))
-	repo := NewRepository(database.DB)
-	svc := NewService(repo)
-	return NewHandler(svc)
+	repository := NewRepository(database.DB)
+	service := NewService(repository)
+	return NewHandler(service)
 }
 
 func TestListUser_Empty(t *testing.T) {
-	h := setupUserHandlerTest(t)
+	handler := setupUserHandlerTest(t)
 
 	app := fiber.New()
-	app.Get("/users", h.ListUser)
+	app.Get("/users", handler.ListUser)
 
 	req := httptest.NewRequest("GET", "/users", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -43,14 +43,14 @@ func TestListUser_Empty(t *testing.T) {
 }
 
 func TestListUser_WithData(t *testing.T) {
-	h := setupUserHandlerTest(t)
+	handler := setupUserHandlerTest(t)
 
-	u := User{Name: "Test User", Email: "test@example.com"}
-	require.NoError(t, u.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&u).Error)
+	testUser := User{Name: "Test User", Email: "test@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
 
 	app := fiber.New()
-	app.Get("/users", h.ListUser)
+	app.Get("/users", handler.ListUser)
 
 	req := httptest.NewRequest("GET", "/users", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -69,10 +69,10 @@ func TestListUser_WithData(t *testing.T) {
 }
 
 func TestGetUser_NotFound(t *testing.T) {
-	h := setupUserHandlerTest(t)
+	handler := setupUserHandlerTest(t)
 
 	app := fiber.New()
-	app.Get("/users/:id", h.GetUser)
+	app.Get("/users/:id", handler.GetUser)
 
 	req := httptest.NewRequest("GET", "/users/00000000-0000-0000-0000-000000000000", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -83,16 +83,16 @@ func TestGetUser_NotFound(t *testing.T) {
 }
 
 func TestGetUser_Found(t *testing.T) {
-	h := setupUserHandlerTest(t)
+	handler := setupUserHandlerTest(t)
 
-	u := User{Name: "Jane", Email: "jane@example.com"}
-	require.NoError(t, u.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&u).Error)
+	testUser := User{Name: "Jane", Email: "jane@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
 
 	app := fiber.New()
-	app.Get("/users/:id", h.GetUser)
+	app.Get("/users/:id", handler.GetUser)
 
-	req := httptest.NewRequest("GET", "/users/"+u.ID, nil)
+	req := httptest.NewRequest("GET", "/users/"+testUser.ID, nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -104,6 +104,6 @@ func TestGetUser_Found(t *testing.T) {
 		Data User `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(body, &result))
-	assert.Equal(t, u.ID, result.Data.ID)
+	assert.Equal(t, testUser.ID, result.Data.ID)
 	assert.Equal(t, "Jane", result.Data.Name)
 }

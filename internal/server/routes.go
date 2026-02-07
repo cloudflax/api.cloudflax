@@ -11,8 +11,8 @@ func Mount(app *fiber.App) {
 	app.Get("/", Home)
 	app.Get("/health", Health())
 
-	userRepo := user.NewRepository(database.DB)
-	userSvc := user.NewService(userRepo)
-	userHandler := user.NewHandler(userSvc)
+	userRepository := user.NewRepository(database.DB)
+	userService := user.NewService(userRepository)
+	userHandler := user.NewHandler(userService)
 	user.Routes(app, userHandler)
 }

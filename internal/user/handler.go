@@ -9,17 +9,17 @@ import (
 
 // Handler handles HTTP requests for users.
 type Handler struct {
-	svc *Service
+	service *Service
 }
 
 // NewHandler creates a new user handler.
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
 // ListUser lists all users.
 func (h *Handler) ListUser(c fiber.Ctx) error {
-	users, err := h.svc.ListUser()
+	users, err := h.service.ListUser()
 	if err != nil {
 		slog.Error("list users", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -34,7 +34,7 @@ func (h *Handler) ListUser(c fiber.Ctx) error {
 // GetUser gets a user by ID.
 func (h *Handler) GetUser(c fiber.Ctx) error {
 	id := c.Params("id")
-	u, err := h.svc.GetUser(id)
+	user, err := h.service.GetUser(id)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			slog.Debug("get user not found", "id", id, "error", err)
@@ -48,6 +48,6 @@ func (h *Handler) GetUser(c fiber.Ctx) error {
 		})
 	}
 	return c.JSON(fiber.Map{
-		"data": u,
+		"data": user,
 	})
 }

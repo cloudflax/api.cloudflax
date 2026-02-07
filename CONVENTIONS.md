@@ -46,6 +46,15 @@ Reglas para mantener consistencia. En este archivo van:
 - **Variables:** camelCase. Constantes y tipos exportados: PascalCase.
 - **Comentarios:** En inglés para código. En español para documentación de usuario.
 
+### Nombres descriptivos (Clean Code)
+
+Evitar abreviaciones y nombres cortos que obligan al lector a “traducir” mentalmente. Preferir nombres que revelen la intención.
+
+- **No abreviar:** Preferir `userRepository`, `userService`, `userHandler` en lugar de `userRepo`, `userSvc`, `userHnd`.
+- **En parámetros y variables:** Usar nombres completos como `repository`, `service`, `handler`, `user`, `request`, `response`.
+- **Excepciones ampliamente conocidas:** `err` (error), `ctx` (context), `id`, `req`/`resp` en contexto HTTP — son convenciones estándar y legibles.
+- **Receivers:** Go acepta receivers de 1–2 letras; usar nombres descriptivos cuando mejoren la claridad (ej. `repository` o `svc` en lugar de `r` si hay varios receivers).
+
 ---
 
 ## Formato de respuesta JSON

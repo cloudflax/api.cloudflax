@@ -20,29 +20,29 @@ func NewRepository(db *gorm.DB) *Repository {
 var ErrNotFound = fmt.Errorf("user not found")
 
 // ListUser returns all users.
-func (r *Repository) ListUser() ([]User, error) {
+func (repository *Repository) ListUser() ([]User, error) {
 	var users []User
-	if err := r.db.Find(&users).Error; err != nil {
+	if err := repository.db.Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
 	return users, nil
 }
 
 // GetUser returns a user by ID.
-func (r *Repository) GetUser(id string) (*User, error) {
-	var u User
-	if err := r.db.First(&u, "id = ?", id).Error; err != nil {
+func (repository *Repository) GetUser(id string) (*User, error) {
+	var user User
+	if err := repository.db.First(&user, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("get user: %w", err)
 	}
-	return &u, nil
+	return &user, nil
 }
 
 // Create creates a new user.
-func (r *Repository) Create(u *User) error {
-	if err := r.db.Create(u).Error; err != nil {
+func (repository *Repository) Create(user *User) error {
+	if err := repository.db.Create(user).Error; err != nil {
 		return fmt.Errorf("create user: %w", err)
 	}
 	return nil
