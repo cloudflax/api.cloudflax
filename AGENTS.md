@@ -46,6 +46,7 @@ make lint       # Linter (golangci-lint)
 | Añadir/modificar un feature, entender capas o flujo | ARCHITECTURE.md |
 | Nombrar funciones, archivos, variables | CONVENTIONS.md |
 | Saber qué falta por hacer | SETUP_PROGRESS.md |
+| Capacidades y stack del proyecto | SKILLS.md |
 | Información general del proyecto | README.md |
 
 ---
@@ -74,6 +75,8 @@ make lint       # Linter (golangci-lint)
   - Consultar antes de empezar una tarea nueva.
 - **README.md**
   - Información general del proyecto y estructura.
+- **SKILLS.md**
+  - Capacidades del agente, del equipo y tecnologías del stack.
 
 ---
 
