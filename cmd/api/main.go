@@ -6,8 +6,9 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/app"
 	"github.com/cloudflax/api.cloudflax/internal/config"
-	"github.com/cloudflax/api.cloudflax/internal/db"
 	"github.com/cloudflax/api.cloudflax/internal/logger"
+	"github.com/cloudflax/api.cloudflax/internal/shared/database"
+	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
 func main() {
@@ -19,8 +20,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := db.Init(cfg); err != nil {
+	if err := database.Init(cfg); err != nil {
 		slog.Error("base de datos", "error", err)
+		os.Exit(1)
+	}
+
+	if err := database.RunMigrations(&user.User{}); err != nil {
+		slog.Error("migraciones", "error", err)
 		os.Exit(1)
 	}
 

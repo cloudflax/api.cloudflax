@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Logger registra cada request con slog (JSON estructurado).
+// Logger logs each request with slog (structured JSON).
 func Logger() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		start := time.Now()

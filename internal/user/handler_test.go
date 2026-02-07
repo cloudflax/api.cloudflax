@@ -1,4 +1,4 @@
-package handlers
+package user
 
 import (
 	"encoding/json"
@@ -6,23 +6,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudflax/api.cloudflax/internal/db"
-	"github.com/cloudflax/api.cloudflax/internal/models"
+	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func setupUsersTest(t *testing.T) {
+func setupUserHandlerTest(t *testing.T) *Handler {
 	t.Helper()
-	require.NoError(t, db.InitForTesting())
+	require.NoError(t, database.InitForTesting())
+	require.NoError(t, database.RunMigrations(&User{}))
+	repo := NewRepository(database.DB)
+	svc := NewService(repo)
+	return NewHandler(svc)
 }
 
-func TestListUsers_Empty(t *testing.T) {
-	setupUsersTest(t)
+func TestListUser_Empty(t *testing.T) {
+	h := setupUserHandlerTest(t)
 
 	app := fiber.New()
-	app.Get("/users", ListUsers)
+	app.Get("/users", h.ListUser)
 
 	req := httptest.NewRequest("GET", "/users", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -34,20 +37,20 @@ func TestListUsers_Empty(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	var result map[string]interface{}
 	require.NoError(t, json.Unmarshal(body, &result))
-	users, ok := result["users"].([]interface{})
+	users, ok := result["data"].([]interface{})
 	require.True(t, ok)
 	assert.Empty(t, users)
 }
 
-func TestListUsers_WithData(t *testing.T) {
-	setupUsersTest(t)
+func TestListUser_WithData(t *testing.T) {
+	h := setupUserHandlerTest(t)
 
-	user := models.User{Name: "Test User", Email: "test@example.com"}
-	require.NoError(t, user.SetPassword("secret123"))
-	require.NoError(t, db.DB.Create(&user).Error)
+	u := User{Name: "Test User", Email: "test@example.com"}
+	require.NoError(t, u.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&u).Error)
 
 	app := fiber.New()
-	app.Get("/users", ListUsers)
+	app.Get("/users", h.ListUser)
 
 	req := httptest.NewRequest("GET", "/users", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -58,18 +61,18 @@ func TestListUsers_WithData(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	var result struct {
-		Users []models.User `json:"users"`
+		Data []User `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(body, &result))
-	require.Len(t, result.Users, 1)
-	assert.Equal(t, "Test User", result.Users[0].Name)
+	require.Len(t, result.Data, 1)
+	assert.Equal(t, "Test User", result.Data[0].Name)
 }
 
 func TestGetUser_NotFound(t *testing.T) {
-	setupUsersTest(t)
+	h := setupUserHandlerTest(t)
 
 	app := fiber.New()
-	app.Get("/users/:id", GetUser)
+	app.Get("/users/:id", h.GetUser)
 
 	req := httptest.NewRequest("GET", "/users/00000000-0000-0000-0000-000000000000", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
@@ -80,16 +83,16 @@ func TestGetUser_NotFound(t *testing.T) {
 }
 
 func TestGetUser_Found(t *testing.T) {
-	setupUsersTest(t)
+	h := setupUserHandlerTest(t)
 
-	user := models.User{Name: "Jane", Email: "jane@example.com"}
-	require.NoError(t, user.SetPassword("secret123"))
-	require.NoError(t, db.DB.Create(&user).Error)
+	u := User{Name: "Jane", Email: "jane@example.com"}
+	require.NoError(t, u.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&u).Error)
 
 	app := fiber.New()
-	app.Get("/users/:id", GetUser)
+	app.Get("/users/:id", h.GetUser)
 
-	req := httptest.NewRequest("GET", "/users/"+user.ID, nil)
+	req := httptest.NewRequest("GET", "/users/"+u.ID, nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -97,8 +100,10 @@ func TestGetUser_Found(t *testing.T) {
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
-	var result models.User
+	var result struct {
+		Data User `json:"data"`
+	}
 	require.NoError(t, json.Unmarshal(body, &result))
-	assert.Equal(t, user.ID, result.ID)
-	assert.Equal(t, "Jane", result.Name)
+	assert.Equal(t, u.ID, result.Data.ID)
+	assert.Equal(t, "Jane", result.Data.Name)
 }

@@ -2,22 +2,17 @@ package app
 
 import (
 	"github.com/cloudflax/api.cloudflax/internal/config"
-	"github.com/cloudflax/api.cloudflax/internal/handlers"
-	"github.com/cloudflax/api.cloudflax/internal/middleware"
+	"github.com/cloudflax/api.cloudflax/internal/server"
+	"github.com/cloudflax/api.cloudflax/internal/shared/middleware"
 	"github.com/gofiber/fiber/v3"
 )
 
-// Run inicia el servidor Fiber con la configuración cargada.
+// Run starts the Fiber server with the loaded configuration.
 func Run(cfg *config.Config) error {
 	app := fiber.New()
 
 	app.Use(middleware.Logger())
-
-	// Rutas
-	app.Get("/", handlers.Home)
-	app.Get("/health", handlers.Health())
-	app.Get("/users", handlers.ListUsers)
-	app.Get("/users/:id", handlers.GetUser)
+	server.Mount(app)
 
 	return app.Listen(":" + cfg.Port)
 }

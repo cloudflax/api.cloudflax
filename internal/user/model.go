@@ -1,4 +1,4 @@
-package models
+package user
 
 import (
 	"time"
@@ -10,7 +10,7 @@ import (
 
 const bcryptCost = 12
 
-// User representa un usuario en el sistema.
+// User represents a user in the system.
 type User struct {
 	ID           string         `gorm:"type:uuid;primaryKey" json:"id"`
 	Name         string         `gorm:"not null" json:"name"`
@@ -36,12 +36,12 @@ func (u *User) CheckPassword(plain string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plain)) == nil
 }
 
-// TableName sobrescribe el nombre de la tabla.
+// TableName overrides the table name.
 func (User) TableName() string {
 	return "users"
 }
 
-// BeforeCreate genera UUID antes de insertar.
+// BeforeCreate generates UUID before insert.
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.ID == "" {
 		u.ID = uuid.New().String()

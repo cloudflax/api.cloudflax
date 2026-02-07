@@ -151,4 +151,4 @@ Orden de ejecución (de fuera hacia dentro):
 
 ## Migración
 
-La estructura actual (`handlers/`, `models/`, `db/`) se migrará gradualmente a feature-driven. El módulo `user` será el primero en adoptar la nueva estructura.
+La estructura ha sido migrada a feature-driven. El módulo `user` usa la nueva estructura. `shared/database` y `shared/middleware` centralizan código común.

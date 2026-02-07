@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"context"
@@ -6,46 +6,42 @@ import (
 	"log/slog"
 
 	"github.com/cloudflax/api.cloudflax/internal/config"
-	"github.com/cloudflax/api.cloudflax/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
 
-// Init abre la conexión a PostgreSQL y ejecuta las migraciones.
+// Init opens the PostgreSQL connection.
 func Init(cfg *config.Config) error {
 	dsn := buildDSN(cfg)
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return fmt.Errorf("abrir conexión: %w", err)
-	}
-
-	if err := RunMigrations(); err != nil {
-		return fmt.Errorf("migraciones: %w", err)
+		return fmt.Errorf("open connection: %w", err)
 	}
 
 	slog.Info("database connected", "host", cfg.DBHost, "dbname", cfg.DBName)
 	return nil
 }
 
-// RunMigrations ejecuta AutoMigrate para crear/actualizar tablas.
-func RunMigrations() error {
-	return DB.AutoMigrate(
-		&models.User{},
-	)
+// RunMigrations runs AutoMigrate for the given models.
+func RunMigrations(models ...interface{}) error {
+	if DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return DB.AutoMigrate(models...)
 }
 
-// Ping verifica que la conexión a PostgreSQL funciona.
+// Ping verifies the PostgreSQL connection is alive.
 func Ping(ctx context.Context) error {
 	if DB == nil {
-		return fmt.Errorf("base de datos no inicializada")
+		return fmt.Errorf("database not initialized")
 	}
 	sqlDB, err := DB.DB()
 	if err != nil {
-		return fmt.Errorf("obtener conexión: %w", err)
+		return fmt.Errorf("get connection: %w", err)
 	}
 	return sqlDB.PingContext(ctx)
 }

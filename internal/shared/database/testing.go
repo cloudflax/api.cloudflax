@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"github.com/glebarez/sqlite"
@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// InitForTesting inicializa la DB con SQLite in-memory para tests (pure Go, sin CGO).
+// InitForTesting initializes the DB with SQLite in-memory (pure Go, no CGO).
 func InitForTesting() error {
 	var err error
 	DB, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
@@ -15,5 +15,5 @@ func InitForTesting() error {
 	if err != nil {
 		return err
 	}
-	return RunMigrations()
+	return nil
 }
