@@ -95,10 +95,11 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 ### 5. Comandos (dentro del DevContainer)
 
 ```bash
-make build    # Compilar
-make run      # Ejecutar (requiere variables de entorno)
-make test     # Tests
-make lint     # golangci-lint
+make build      # Compilar
+make run        # Ejecutar (requiere variables de entorno)
+make test       # Tests
+make test-cover # Tests con cobertura (genera coverage.html)
+make lint       # golangci-lint
 ```
 
 ### 6. Endpoints

@@ -10,6 +10,10 @@ tmp/
 bin/
 dist/
 
+# Test coverage
+coverage.out
+coverage.html
+
 # Environment
 .env
 .env.local

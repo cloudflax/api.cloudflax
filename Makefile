@@ -16,6 +16,12 @@ run: build
 test:
 	go test -v ./...
 
+# Ejecutar tests con cobertura (genera coverage.html)
+test-cover:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Cobertura: $(shell go tool cover -func=coverage.out | grep total | awk '{print $$3}')"
+
 # Ejecutar linter
 lint:
 	golangci-lint run --config .golangci.yml ./...
