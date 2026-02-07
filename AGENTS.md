@@ -41,6 +41,12 @@ make lint       # Linter (golangci-lint)
 
 ## Referencias
 
+- **ARCHITECTURE.md**
+  - Estructura del proyecto, patrón por capas y organización por recurso.
+  - Consultar al diseñar o añadir nuevos recursos.
+- **CONVENTIONS.md**
+  - Nombres, estilo de código y patrones de naming.
+  - Consultar al escribir código.
 - **SETUP_PROGRESS.md**
   - Estado actual del proyecto y lista de tareas pendientes.
   - Consultar antes de empezar una tarea nueva.
