@@ -53,7 +53,6 @@ BEGIN { count = 0; pkg_sum = 0; }
 # 4. Capturar detalles de error
 /^[[:space:]]+.*_test\.go:[0-9]+:/ || /^[[:space:]]+Error Trace:/ || /^[[:space:]]+Error:/ || /^[[:space:]]+Messages:/ || /^[[:space:]]+expected:/ || /^[[:space:]]+actual  :/ {
     sub(/^[[:space:]]+/, "");
-    # AJUSTE: Ahora usamos 4 espacios para que el detalle se alinee con el inicio de FAIL/PASS
     details[count] = details[count] yellow "    " $0 reset "\n";
     next;
 }
@@ -62,7 +61,15 @@ BEGIN { count = 0; pkg_sum = 0; }
 /^ok[[:space:]]+/ || /^FAIL[[:space:]]+github.com/ {
     pkg = $2;
     is_cached = ($0 ~ /cached/);
-    pkg_status = ($1 == "ok" ? "PASS" : "FAIL");
+    
+    # Determinamos el color y etiqueta de la cabecera
+    if ($1 == "ok") {
+        pkg_status = "PASS";
+        pkg_color = ""; # Color neutro para PASS
+    } else {
+        pkg_status = "FAIL";
+        pkg_color = red; # Color rojo para FAIL
+    }
     
     if (!is_cached) {
         raw_pkg = $3; gsub(/s/, "", raw_pkg);
@@ -71,14 +78,13 @@ BEGIN { count = 0; pkg_sum = 0; }
         pkg_time = "0.00s";
     }
 
-    # Cabecera de paquete (Sin sangría)
-    printf "%s %-58s [%s]\n", pkg_status, pkg, pkg_time;
+    # Cabecera de paquete con color condicional
+    printf "%s%s %-58s [%s]%s\n", pkg_color, pkg_status, pkg, pkg_time, reset;
     
     suffix = is_cached ? "(cached)" : "";
 
     for (i = 1; i <= count; i++) {
         t = (times[i] == "" ? "0.00s" : times[i]);
-        # Los tests hijos tienen 2 espacios de sangría inicial
         printf "  %s%s %-56s [%s] %s%s\n", colors[i], statuses[i], names[i], t, suffix, reset;
         if (details[i] != "") printf "%s", details[i];
     }
