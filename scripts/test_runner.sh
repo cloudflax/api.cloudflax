@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Colores
+# Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 RESET='\033[0m'
 
-# Ejecutar tests y capturar salida
+# Run tests and capture output
 OUTPUT=$(go test -v ./... 2>&1)
 EXIT_CODE=$?
 
-# Procesar la salida con AWK
+# Process output with AWK
 echo "$OUTPUT" | awk -v green="$GREEN" -v red="$RED" -v yellow="$YELLOW" -v reset="$RESET" '
 function format_name(n) {
     sub(/^Test/, "", n);
@@ -34,14 +34,14 @@ BEGIN {
     test_count = 0; 
 }
 
-# Capturar resultado de test individual y guardarlo en un buffer
+# Capture individual test result and save to buffer
 /^--- (PASS|FAIL):/ {
     status = $2; sub(/:/, "", status);
     color = (status == "PASS" ? green : red);
     name = $3;
     time = "0.000s";
-    if (match($0, /\(([0-9.]+)s\)/)) {
-        # Extraer el valor numérico y formatear a 3 decimales
+    if (match($0, /\([0-9.]+s\)/)) {
+        # Extract numeric value and format to 3 decimals
         t_str = substr($0, RSTART+1, RLENGTH-2);
         sub(/s$/, "", t_str);
         time = sprintf("%.3fs", t_val = t_str + 0);
@@ -52,7 +52,7 @@ BEGIN {
     next;
 }
 
-# Capturar errores y guardarlos en el buffer del test actual
+# Capture error details and save to current test buffer
 /^[[:space:]]+.*_test\.go:[0-9]+:/ || /^[[:space:]]+Error Trace:/ || /^[[:space:]]+Error:/ || /^[[:space:]]+Messages:/ || /^[[:space:]]+expected:/ || /^[[:space:]]+actual  :/ {
     if (test_count > 0) {
         line = $0; sub(/^[[:space:]]+/, "", line);
@@ -61,13 +61,13 @@ BEGIN {
     next;
 }
 
-# Cuando termina un paquete (ok o FAIL)
+# When a package finishes (ok or FAIL)
 /^(ok|FAIL)[[:space:]]+github.com/ {
     pkg_status = ($1 == "ok" ? "PASS" : "FAIL");
     pkg_color = ($1 == "ok" ? "" : red);
     pkg_name = $2;
     
-    # Formatear tiempo del paquete a 3 decimales
+    # Format package time to 3 decimals
     if ($0 ~ /cached/) {
         pkg_time = "0.000s";
     } else {
@@ -75,21 +75,21 @@ BEGIN {
         pkg_time = sprintf("%.3fs", t_val + 0);
     }
     
-    # 1. Imprimir primero la línea del paquete
+    # 1. Print package header first
     printf "%s%s %-58s [%s]%s\n", pkg_color, pkg_status, pkg_name, pkg_time, reset;
     
-    # 2. Imprimir todos los tests guardados para este paquete
+    # 2. Print all saved tests for this package
     for (i = 1; i <= test_count; i++) {
         print test_buffer[i];
     }
     
-    # 3. Limpiar el buffer para el siguiente paquete
+    # 3. Clear buffer for next package
     test_count = 0;
     delete test_buffer;
     next;
 }
 
-# Ignorar otras líneas
+# Ignore other lines
 { next; }
 '
 
