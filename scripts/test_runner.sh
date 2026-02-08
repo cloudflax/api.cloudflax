@@ -65,7 +65,11 @@ BEGIN {
 /^(ok|FAIL)[[:space:]]+github.com/ {
     pkg_status = ($1 == "ok" ? "PASS" : "FAIL");
     pkg_color = ($1 == "ok" ? "" : red);
-    pkg_name = $2;
+    pkg_full_name = $2;
+    
+    # Shorten package name: github.com/cloudflax/api.cloudflax/internal/user -> api.cloudflax/internal/user
+    pkg_name = pkg_full_name;
+    sub(/^github\.com\/cloudflax\//, "", pkg_name);
     
     if ($0 ~ /cached/) {
         t_val = 0;
@@ -78,6 +82,7 @@ BEGIN {
     
     total_time += t_val;
     
+    # Print package header with shortened name and consistent padding
     printf "%s%s %-58s [%s]%s\n", pkg_color, pkg_status, pkg_name, pkg_time, reset;
     
     for (i = 1; i <= test_count; i++) {
