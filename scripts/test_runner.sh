@@ -32,6 +32,7 @@ function format_name(n) {
 
 BEGIN { 
     test_count = 0; 
+    total_time = 0;
 }
 
 # Capture individual test result and save to buffer
@@ -41,7 +42,6 @@ BEGIN {
     name = $3;
     time = "0.000s";
     if (match($0, /\([0-9.]+s\)/)) {
-        # Extract numeric value and format to 3 decimals
         t_str = substr($0, RSTART+1, RLENGTH-2);
         sub(/s$/, "", t_str);
         time = sprintf("%.3fs", t_val = t_str + 0);
@@ -67,37 +67,48 @@ BEGIN {
     pkg_color = ($1 == "ok" ? "" : red);
     pkg_name = $2;
     
-    # Format package time to 3 decimals
     if ($0 ~ /cached/) {
+        t_val = 0;
         pkg_time = "0.000s";
     } else {
         t_val = $3; sub(/s$/, "", t_val);
-        pkg_time = sprintf("%.3fs", t_val + 0);
+        t_val = t_val + 0;
+        pkg_time = sprintf("%.3fs", t_val);
     }
     
-    # 1. Print package header first
+    total_time += t_val;
+    
     printf "%s%s %-58s [%s]%s\n", pkg_color, pkg_status, pkg_name, pkg_time, reset;
     
-    # 2. Print all saved tests for this package
     for (i = 1; i <= test_count; i++) {
         print test_buffer[i];
     }
     
-    # 3. Clear buffer for next package
     test_count = 0;
     delete test_buffer;
     next;
 }
 
+# End block to pass total time back to shell
+END {
+    printf "TOTAL_TIME:%.3fs\n", total_time;
+}
+
 # Ignore other lines
 { next; }
-'
+' > .test_output
+
+# Extract total time and clean output
+TOTAL_TIME=$(grep "TOTAL_TIME:" .test_output | cut -d: -f2)
+sed -i '/TOTAL_TIME:/d' .test_output
+cat .test_output
+rm .test_output
 
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
-    printf "${GREEN}✓ All tests passed${RESET}\n"
+    printf "${GREEN}✓ All tests passed [${TOTAL_TIME}]${RESET}\n"
 else
-    printf "${RED}✗ Some tests failed${RESET}\n"
+    printf "${RED}✗ Some tests failed [${TOTAL_TIME}]${RESET}\n"
 fi
 
 exit $EXIT_CODE
