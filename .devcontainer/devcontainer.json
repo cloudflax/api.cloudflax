@@ -2,6 +2,7 @@
   "name": "Cloudflax Backend",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app",
+  "runServices": ["app", "db"],
   "workspaceFolder": "/app",
   "customizations": {
     "vscode": {
