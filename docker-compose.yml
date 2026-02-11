@@ -4,7 +4,7 @@ services:
   certs-init:
     image: alpine:3.20
     volumes:
-      - ./postgres/certs:/certs
+      - postgres_certs:/certs
     command:
       - sh
       - -c
@@ -21,8 +21,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'Container started' && tail -f /dev/null"]
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - .:/app
       - go-mod-cache:/go/pkg/mod
@@ -55,7 +57,7 @@ services:
       - POSTGRES_DB=cloudflax
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/certs:/certs:ro
+      - postgres_certs:/certs:ro
     depends_on:
       certs-init:
         condition: service_completed_successfully
@@ -67,4 +69,5 @@ services:
 
 volumes:
   postgres_data:
+  postgres_certs:
   go-mod-cache:

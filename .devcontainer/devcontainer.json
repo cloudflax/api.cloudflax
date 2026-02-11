@@ -18,7 +18,7 @@
       }
     }
   },
-  "forwardPorts": [3000, 5432],
+  "forwardPorts": [3001, 5432],
   "postCreateCommand": "go mod tidy && sh scripts/install-hooks.sh",
   "remoteUser": "root"
 }
