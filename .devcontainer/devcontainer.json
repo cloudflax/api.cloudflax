@@ -2,7 +2,7 @@
   "name": "Cloudflax Backend",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app",
-  "runServices": ["app", "db"],
+  "runServices": ["app"],
   "workspaceFolder": "/app",
   "customizations": {
     "vscode": {
@@ -18,7 +18,7 @@
       }
     }
   },
-  "forwardPorts": [3001, 5432],
+  "forwardPorts": [3000],
   "postCreateCommand": "go mod tidy && sh scripts/install-hooks.sh",
   "remoteUser": "root"
 }

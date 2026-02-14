@@ -89,7 +89,7 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_USER`     | Usuario DB         | `postgres` |
 | `DB_PASSWORD` | Contraseña DB      | —          |
 | `DB_NAME`     | Nombre de la DB    | `cloudflax`|
-| `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `require` |
+| `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `disable` |
 | `LOG_LEVEL`   | Nivel de log: `DEBUG`, `INFO`, `WARN`, `ERROR`            | `INFO`    |
 
 ### 5. Comandos (dentro del DevContainer)

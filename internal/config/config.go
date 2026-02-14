@@ -31,7 +31,7 @@ func Load() (*Config, error) {
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "cloudflax"),
-		DBSSLMode:  getEnv("DB_SSL_MODE", "require"),
+		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
 	}
 
 	if err := cfg.Validate(); err != nil {

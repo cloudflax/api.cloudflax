@@ -49,7 +49,7 @@ func Ping(ctx context.Context) error {
 func buildDSN(cfg *config.Config) string {
 	sslmode := cfg.DBSSLMode
 	if sslmode == "" {
-		sslmode = "require"
+		sslmode = "disable"
 	}
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
