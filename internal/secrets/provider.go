@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-secretsmanager-caching-go/v2/secretcache"
 )
 
 // Provider returns database credentials from an external source (e.g. AWS Secrets Manager).
@@ -16,15 +18,15 @@ type Provider interface {
 	GetDBCredentials(ctx context.Context) (*DBCredentials, error)
 }
 
-// secretsAPI is a minimal interface for the Secrets Manager client, so it can
-// be stubbed in tests.
-type secretsAPI interface {
-	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+// secretCacheAPI is a minimal interface for the Secrets Manager secret cache.
+// It is used so the cache can be stubbed in tests.
+type secretCacheAPI interface {
+	GetSecretStringWithContext(ctx context.Context, secretId string) (string, error)
 }
 
 // SecretsManagerProvider loads DBCredentials from AWS Secrets Manager (LocalStack or AWS).
 type SecretsManagerProvider struct {
-	client secretsAPI
+	cache  secretCacheAPI
 	secret string
 }
 
@@ -35,6 +37,7 @@ type SecretsManagerOptions struct {
 	SecretID        string
 	AccessKeyID     string
 	SecretAccessKey string
+	CacheTTL        time.Duration
 }
 
 // NewSecretsManagerProvider creates a provider that fetches DB credentials from Secrets Manager.
@@ -65,22 +68,34 @@ func NewSecretsManagerProvider(ctx context.Context, opts SecretsManagerOptions) 
 		})
 	}
 	client := secretsmanager.NewFromConfig(cfg, clientOpts...)
-	return &SecretsManagerProvider{client: client, secret: opts.SecretID}, nil
+
+	cacheOpts := []func(*secretcache.Cache){
+		func(c *secretcache.Cache) { c.Client = client },
+	}
+	if opts.CacheTTL > 0 {
+		cacheOpts = append(cacheOpts, func(c *secretcache.Cache) {
+			c.CacheConfig.CacheItemTTL = opts.CacheTTL.Nanoseconds()
+		})
+	}
+
+	cache, err := secretcache.New(cacheOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("create secrets cache: %w", err)
+	}
+
+	return &SecretsManagerProvider{
+		cache:  cache,
+		secret: opts.SecretID,
+	}, nil
 }
 
 // GetDBCredentials retrieves the secret string and parses it as DBCredentials.
 func (p *SecretsManagerProvider) GetDBCredentials(ctx context.Context) (*DBCredentials, error) {
-	out, err := p.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(p.secret),
-	})
+	raw, err := p.cache.GetSecretStringWithContext(ctx, p.secret)
 	if err != nil {
 		return nil, fmt.Errorf("get secret value: %w", err)
 	}
 
-	var raw string
-	if out.SecretString != nil {
-		raw = *out.SecretString
-	}
 	if raw == "" {
 		return nil, fmt.Errorf("secret value is empty")
 	}

@@ -14,7 +14,7 @@ import (
 // Config holds the application configuration.
 type Config struct {
 	Port     string
-	LogLevel string // DEBUG, INFO, WARN, ERROR
+	LogLevel string // debug, info, warn, error
 
 	DBHost     string
 	DBPort     int
@@ -36,7 +36,7 @@ var (
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:      getEnv("PORT", "3000"),
-		LogLevel:  getEnv("LOG_LEVEL", "INFO"),
+		LogLevel:  getEnv("LOG_LEVEL", "info"),
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
 	}
 
@@ -65,19 +65,21 @@ func Load() (*Config, error) {
 // secretName is the name or ARN of the secret in Secrets Manager (provided by the deployer).
 func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {
 	dbSecretsOnce.Do(func() {
+		ttlSeconds := getEnvInt("SECRETS_CACHE_TTL_SECONDS", 300)
+
 		baseProvider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{
-			EndpointURL:     getEnv("AWS_ENDPOINT_URL", "http://host.docker.internal:4566"),
+			EndpointURL:     awsEndpointURL(),
 			Region:          getEnv("AWS_REGION", "us-east-1"),
 			SecretID:        secretName,
 			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "test"),
 			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
+			CacheTTL:        time.Duration(ttlSeconds) * time.Second,
 		})
 		if err != nil {
 			dbSecretsInitErr = err
 			return
 		}
-		ttlSeconds := getEnvInt("SECRETS_CACHE_TTL_SECONDS", 300)
-		dbSecretsProvider = secrets.NewCachingProvider(baseProvider, time.Duration(ttlSeconds)*time.Second)
+		dbSecretsProvider = baseProvider
 	})
 
 	if dbSecretsInitErr != nil {
@@ -121,4 +123,19 @@ func getEnvInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+// awsEndpointURL resolves the AWS Secrets Manager endpoint URL based on the
+// current environment. In local development (APP_ENV=localstack) it defaults
+// to the LocalStack endpoint, but it can always be overridden via
+// AWS_ENDPOINT_URL.
+func awsEndpointURL() string {
+	appEnv := getEnv("APP_ENV", "")
+
+	defaultEndpoint := ""
+	if appEnv == "localstack" {
+		defaultEndpoint = "http://host.docker.internal:4566"
+	}
+
+	return getEnv("AWS_ENDPOINT_URL", defaultEndpoint)
 }

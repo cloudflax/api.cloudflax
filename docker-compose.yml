@@ -11,7 +11,7 @@ services:
     environment:
       - APP_ENV=localstack
       - PORT=3000
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=info
       - AWS_ENDPOINT_URL=http://host.docker.internal:4566
       - AWS_REGION=us-east-1
       - AWS_SECRET_NAME=tf-localstack-db-secret

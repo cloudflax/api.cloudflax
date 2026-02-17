@@ -90,7 +90,7 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_PASSWORD` | Contraseña DB      | —          |
 | `DB_NAME`     | Nombre de la DB    | `cloudflax`|
 | `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `disable` |
-| `LOG_LEVEL`   | Nivel de log: `DEBUG`, `INFO`, `WARN`, `ERROR`            | `INFO`    |
+| `LOG_LEVEL`   | Nivel de log: `DEBUG`, `info`, `WARN`, `ERROR`            | `info`    |
 
 #### 4.1 Configuración con AWS Secrets Manager (LocalStack)
 
