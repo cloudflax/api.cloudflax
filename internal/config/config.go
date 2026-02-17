@@ -30,8 +30,9 @@ var (
 	dbSecretsInitErr  error
 )
 
-// Load loads the configuration. DB credentials come from either environment variables
-// or AWS Secrets Manager (LocalStack), depending on CONFIG_SOURCE. Server settings (PORT, LOG_LEVEL) always come from env.
+// Load loads the configuration. DB credentials always come from AWS Secrets Manager
+// (e.g. LocalStack). Server settings (PORT, LOG_LEVEL) and DB_SSL_MODE always come
+// from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:      getEnv("PORT", "3000"),
@@ -39,27 +40,19 @@ func Load() (*Config, error) {
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
 	}
 
-	if getEnv("CONFIG_SOURCE", "") == "secrets" {
-		secretName := getEnv("AWS_SECRET_NAME", "")
-		if secretName == "" {
-			return nil, fmt.Errorf("AWS_SECRET_NAME is required when CONFIG_SOURCE=secrets (Secrets Manager secret name)")
-		}
-		dbCfg, err := loadDBConfigFromSecrets(context.Background(), secretName)
-		if err != nil {
-			return nil, fmt.Errorf("load db config from secrets: %w", err)
-		}
-		cfg.DBHost = dbCfg.Host()
-		cfg.DBPort = dbCfg.Port()
-		cfg.DBUser = dbCfg.Username()
-		cfg.DBPassword = dbCfg.Password()
-		cfg.DBName = dbCfg.DBName()
-	} else {
-		cfg.DBHost = getEnv("DB_HOST", "localhost")
-		cfg.DBPort = getEnvInt("DB_PORT", 5432)
-		cfg.DBUser = getEnv("DB_USER", "postgres")
-		cfg.DBPassword = getEnv("DB_PASSWORD", "")
-		cfg.DBName = getEnv("DB_NAME", "cloudflax")
+	secretName := getEnv("AWS_SECRET_NAME", "")
+	if secretName == "" {
+		return nil, fmt.Errorf("AWS_SECRET_NAME is required (Secrets Manager secret name)")
 	}
+	dbCfg, err := loadDBConfigFromSecrets(context.Background(), secretName)
+	if err != nil {
+		return nil, fmt.Errorf("load db config from secrets: %w", err)
+	}
+	cfg.DBHost = dbCfg.Host()
+	cfg.DBPort = dbCfg.Port()
+	cfg.DBUser = dbCfg.Username()
+	cfg.DBPassword = dbCfg.Password()
+	cfg.DBName = dbCfg.DBName()
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err

@@ -33,6 +33,10 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 - [ ] **13. CI/CD** — GitHub Actions o GitLab CI
 - [ ] **14. Paginación** — ?page=1&limit=10 en listas
 
+**Configuración de entornos y Secrets Manager**
+- [x] **ENV1. Unificar variable de entorno de entorno (`APP_ENV`)** — Definir `APP_ENV` (`localstack`, `dev`, `prod`, etc.) y usarla en `config.Load` y `docker-compose.yml` en lugar de depender de flags aislados como `CONFIG_SOURCE`.
+- [ ] **ENV2. Integrar `aws-secretsmanager-caching-go/secretcache`** — Reemplazar el caché manual por `secretcache`, usando `APP_ENV` y variables `AWS_*` para apuntar a LocalStack en desarrollo.
+
 ### Largo plazo
 
 - [ ] **15. Rate limiting** — Límite de requests por IP

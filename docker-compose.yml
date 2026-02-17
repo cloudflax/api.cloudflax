@@ -9,9 +9,9 @@ services:
       - .:/app
       - go-mod-cache:/go/pkg/mod
     environment:
+      - APP_ENV=localstack
       - PORT=3000
       - LOG_LEVEL=INFO
-      - CONFIG_SOURCE=secrets
       - AWS_ENDPOINT_URL=http://host.docker.internal:4566
       - AWS_REGION=us-east-1
       - AWS_SECRET_NAME=tf-localstack-db-secret
