@@ -42,7 +42,7 @@ func Load() (*Config, error) {
 	if getEnv("CONFIG_SOURCE", "") == "secrets" {
 		secretName := getEnv("AWS_SECRET_NAME", "")
 		if secretName == "" {
-			return nil, fmt.Errorf("AWS_SECRET_NAME is required when CONFIG_SOURCE=secrets (nombre del secreto en Secrets Manager)")
+			return nil, fmt.Errorf("AWS_SECRET_NAME is required when CONFIG_SOURCE=secrets (Secrets Manager secret name)")
 		}
 		dbCfg, err := loadDBConfigFromSecrets(context.Background(), secretName)
 		if err != nil {
@@ -69,7 +69,7 @@ func Load() (*Config, error) {
 }
 
 // loadDBConfigFromSecrets fetches DB credentials from AWS Secrets Manager (e.g. LocalStack) at startup.
-// secretName is the name or ARN del secreto en Secrets Manager (debe indicarlo quien despliega).
+// secretName is the name or ARN of the secret in Secrets Manager (provided by the deployer).
 func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {
 	dbSecretsOnce.Do(func() {
 		baseProvider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{

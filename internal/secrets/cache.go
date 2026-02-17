@@ -7,7 +7,7 @@ import (
 )
 
 // cachingProvider wraps a Provider and caches the result for a configurable TTL.
-// This avoids hitting AWS Secrets Manager (o LocalStack) en cada llamada.
+// This avoids hitting AWS Secrets Manager (or LocalStack) on every call.
 type cachingProvider struct {
 	inner Provider
 	ttl   time.Duration
@@ -18,7 +18,7 @@ type cachingProvider struct {
 }
 
 // NewCachingProvider returns a Provider that caches the DB credentials for the
-// given TTL. If ttl <= 0, it returns inner sin caché.
+// given TTL. If ttl <= 0, it returns inner unchanged (no caching).
 func NewCachingProvider(inner Provider, ttl time.Duration) Provider {
 	if ttl <= 0 {
 		return inner
@@ -29,8 +29,8 @@ func NewCachingProvider(inner Provider, ttl time.Duration) Provider {
 	}
 }
 
-// GetDBCredentials returns cached credentials when válidas; si el caché expira,
-// vuelve a llamar al proveedor interno y refresca el valor.
+// GetDBCredentials returns cached credentials when they are still valid; if the
+// cache entry is expired it will call the inner provider again and refresh it.
 func (c *cachingProvider) GetDBCredentials(ctx context.Context) (*DBCredentials, error) {
 	now := time.Now()
 
@@ -56,7 +56,15 @@ func (c *cachingProvider) GetDBCredentials(ctx context.Context) (*DBCredentials,
 
 	creds, err := c.inner.GetDBCredentials(ctx)
 	if err != nil {
-		return nil, err
+		// Best-effort handling for rotation/invalid credentials:
+		// invalidate cache and retry once.
+		c.cached = nil
+		c.expires = time.Time{}
+
+		creds, err = c.inner.GetDBCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Guardar copia para evitar aliasing

@@ -35,8 +35,8 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ### Integración avanzada con Secrets Manager (LocalStack)
 
-- [ ] **S1. Capa de caché para secretos** — Definir interfaz de caché (en memoria) y aplicar patrón Singleton con TTL para evitar llamadas repetitivas a Secrets Manager.
-- [ ] **S2. Manejo de rotación y reintentos** — Añadir lógica de reintento cuando haya errores de autenticación/credenciales (p.ej. invalid auth) e invalidar caché en esos casos.
+- [x] **S1. Capa de caché para secretos** — Definir interfaz de caché (en memoria) y aplicar patrón Singleton con TTL para evitar llamadas repetitivas a Secrets Manager.
+- [x] **S2. Manejo de rotación y reintentos** — Añadir lógica de reintento cuando haya errores de autenticación/credenciales (p.ej. invalid auth) e invalidar caché en esos casos.
 - [ ] **S3. Seguridad de memoria y parseo** — Asegurar que los secretos se parseen directamente a structs privados (sin pasar por variables de entorno adicionales), revisando que no se impriman ni se logueen.
 - [ ] **S4. Pruebas y observabilidad** — Tests unitarios/mocks para la capa de caché + métricas/logs mínimos para monitorizar aciertos/fallos de caché (solo en desarrollo).
 
