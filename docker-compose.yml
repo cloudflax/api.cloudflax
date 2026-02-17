@@ -11,12 +11,12 @@ services:
     environment:
       - PORT=3000
       - LOG_LEVEL=INFO
-      - DB_HOST=host.docker.internal
-      - DB_PORT=4510
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_NAME=cloudflax
-      - DB_SSL_MODE=disable
+      - CONFIG_SOURCE=secrets
+      - AWS_ENDPOINT_URL=http://host.docker.internal:4566
+      - AWS_REGION=us-east-1
+      - AWS_SECRET_NAME=tf-localstack-db-secret
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

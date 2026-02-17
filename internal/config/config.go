@@ -1,9 +1,12 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/cloudflax/api.cloudflax/internal/secrets"
 )
 
 // Config holds the application configuration.
@@ -19,19 +22,35 @@ type Config struct {
 	DBSSLMode  string // require, verify-ca, verify-full, disable
 }
 
-// Load loads the configuration from environment variables.
-// In Docker, variables are configured via env_file or environment in docker-compose.
+// Load loads the configuration. DB credentials come from either environment variables
+// or AWS Secrets Manager (LocalStack), depending on CONFIG_SOURCE. Server settings (PORT, LOG_LEVEL) always come from env.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:     getEnv("PORT", "3000"),
-		LogLevel: getEnv("LOG_LEVEL", "INFO"),
+		Port:      getEnv("PORT", "3000"),
+		LogLevel:  getEnv("LOG_LEVEL", "INFO"),
+		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
+	}
 
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnvInt("DB_PORT", 5432),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "cloudflax"),
-		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
+	if getEnv("CONFIG_SOURCE", "") == "secrets" {
+		secretName := getEnv("AWS_SECRET_NAME", "")
+		if secretName == "" {
+			return nil, fmt.Errorf("AWS_SECRET_NAME is required when CONFIG_SOURCE=secrets (nombre del secreto en Secrets Manager)")
+		}
+		dbCfg, err := loadDBConfigFromSecrets(context.Background(), secretName)
+		if err != nil {
+			return nil, fmt.Errorf("load db config from secrets: %w", err)
+		}
+		cfg.DBHost = dbCfg.Host
+		cfg.DBPort = dbCfg.Port
+		cfg.DBUser = dbCfg.Username
+		cfg.DBPassword = dbCfg.Password
+		cfg.DBName = dbCfg.DBName
+	} else {
+		cfg.DBHost = getEnv("DB_HOST", "localhost")
+		cfg.DBPort = getEnvInt("DB_PORT", 5432)
+		cfg.DBUser = getEnv("DB_USER", "postgres")
+		cfg.DBPassword = getEnv("DB_PASSWORD", "")
+		cfg.DBName = getEnv("DB_NAME", "cloudflax")
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -39,6 +58,22 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// loadDBConfigFromSecrets fetches DB credentials from AWS Secrets Manager (e.g. LocalStack) at startup.
+// secretName is the name or ARN del secreto en Secrets Manager (debe indicarlo quien despliega).
+func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {
+	provider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{
+		EndpointURL:     getEnv("AWS_ENDPOINT_URL", "http://localhost.localstack.cloud:4566"),
+		Region:          getEnv("AWS_REGION", "us-east-1"),
+		SecretID:        secretName,
+		AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "test"),
+		SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return provider.GetDBCredentials(ctx)
 }
 
 // Validate verifies that required configuration is present.

@@ -92,6 +92,20 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `disable` |
 | `LOG_LEVEL`   | Nivel de log: `DEBUG`, `INFO`, `WARN`, `ERROR`            | `INFO`    |
 
+#### 4.1 Configuración con AWS Secrets Manager (LocalStack)
+
+Si usas **LocalStack** con Secrets Manager, puedes cargar las credenciales de la base de datos desde un secreto en lugar de variables de entorno. El secreto debe ser un JSON con: `dbname`, `host`, `password`, `port`, `username`.
+
+1. Define en LocalStack un secreto (por ejemplo `db/cloudflax`) con el JSON de credenciales.
+2. En `docker-compose` o en el entorno, configura:
+   - `CONFIG_SOURCE=secrets`
+   - `AWS_ENDPOINT_URL=http://localhost.localstack.cloud:4566` (o `http://host.docker.internal:4566` si LocalStack corre en tu máquina y la app en Docker)
+   - `AWS_REGION=us-east-1`
+   - `AWS_SECRET_NAME=db/cloudflax`
+   - `AWS_ACCESS_KEY_ID=test` y `AWS_SECRET_ACCESS_KEY=test` (LocalStack acepta credenciales de prueba).
+
+La aplicación cargará el secreto **solo al arranque** y usará esos valores para la conexión a la base de datos. El resto de la configuración (`PORT`, `LOG_LEVEL`) sigue leyéndose de variables de entorno.
+
 ### 5. Comandos (dentro del DevContainer)
 
 ```bash
