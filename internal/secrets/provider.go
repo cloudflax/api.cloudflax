@@ -16,9 +16,15 @@ type Provider interface {
 	GetDBCredentials(ctx context.Context) (*DBCredentials, error)
 }
 
+// secretsAPI is a minimal interface for the Secrets Manager client, so it can
+// be stubbed in tests.
+type secretsAPI interface {
+	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+}
+
 // SecretsManagerProvider loads DBCredentials from AWS Secrets Manager (LocalStack or AWS).
 type SecretsManagerProvider struct {
-	client *secretsmanager.Client
+	client secretsAPI
 	secret string
 }
 
