@@ -14,9 +14,9 @@ services:
       - DB_HOST=host.docker.internal
       - DB_PORT=4510
       - DB_USER=postgres
-      - DB_PASSWORD=password # Cambia esto si tu DB local tiene otra clave
+      - DB_PASSWORD=password
       - DB_NAME=cloudflax
-      - DB_SSL_MODE=disable # Cambia a 'require' si tu DB local usa SSL
+      - DB_SSL_MODE=disable
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
