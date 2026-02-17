@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/secrets"
 )
@@ -21,6 +23,12 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string // require, verify-ca, verify-full, disable
 }
+
+var (
+	dbSecretsProvider secrets.Provider
+	dbSecretsOnce     sync.Once
+	dbSecretsInitErr  error
+)
 
 // Load loads the configuration. DB credentials come from either environment variables
 // or AWS Secrets Manager (LocalStack), depending on CONFIG_SOURCE. Server settings (PORT, LOG_LEVEL) always come from env.
@@ -63,17 +71,30 @@ func Load() (*Config, error) {
 // loadDBConfigFromSecrets fetches DB credentials from AWS Secrets Manager (e.g. LocalStack) at startup.
 // secretName is the name or ARN del secreto en Secrets Manager (debe indicarlo quien despliega).
 func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {
-	provider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{
-		EndpointURL:     getEnv("AWS_ENDPOINT_URL", "http://localhost.localstack.cloud:4566"),
-		Region:          getEnv("AWS_REGION", "us-east-1"),
-		SecretID:        secretName,
-		AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "test"),
-		SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
+	dbSecretsOnce.Do(func() {
+		baseProvider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{
+			EndpointURL:     getEnv("AWS_ENDPOINT_URL", "http://host.docker.internal:4566"),
+			Region:          getEnv("AWS_REGION", "us-east-1"),
+			SecretID:        secretName,
+			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "test"),
+			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
+		})
+		if err != nil {
+			dbSecretsInitErr = err
+			return
+		}
+		ttlSeconds := getEnvInt("SECRETS_CACHE_TTL_SECONDS", 300)
+		dbSecretsProvider = secrets.NewCachingProvider(baseProvider, time.Duration(ttlSeconds)*time.Second)
 	})
-	if err != nil {
-		return nil, err
+
+	if dbSecretsInitErr != nil {
+		return nil, dbSecretsInitErr
 	}
-	return provider.GetDBCredentials(ctx)
+	if dbSecretsProvider == nil {
+		return nil, fmt.Errorf("secrets provider not initialized")
+	}
+
+	return dbSecretsProvider.GetDBCredentials(ctx)
 }
 
 // Validate verifies that required configuration is present.
