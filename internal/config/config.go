@@ -48,11 +48,11 @@ func Load() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("load db config from secrets: %w", err)
 		}
-		cfg.DBHost = dbCfg.Host
-		cfg.DBPort = dbCfg.Port
-		cfg.DBUser = dbCfg.Username
-		cfg.DBPassword = dbCfg.Password
-		cfg.DBName = dbCfg.DBName
+		cfg.DBHost = dbCfg.Host()
+		cfg.DBPort = dbCfg.Port()
+		cfg.DBUser = dbCfg.Username()
+		cfg.DBPassword = dbCfg.Password()
+		cfg.DBName = dbCfg.DBName()
 	} else {
 		cfg.DBHost = getEnv("DB_HOST", "localhost")
 		cfg.DBPort = getEnvInt("DB_PORT", 5432)
