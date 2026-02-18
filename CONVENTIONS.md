@@ -67,14 +67,35 @@ Evitar abreviaciones y nombres cortos que obligan al lector a “traducir” men
 }
 ```
 
-**Error:**
+**Error (único):**
 ```json
 {
-  "error": "Descripción del error",
-  "code": "ERROR_CODE",
-  "status": 400
+  "error": {
+    "code": "USER_NOT_FOUND",
+    "message": "user not found",
+    "status": 404,
+    "trace_id": "abc-123"
+  }
 }
 ```
+
+**Error (múltiples campos — validación):**
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "validation failed",
+    "status": 422,
+    "trace_id": "abc-123",
+    "details": [
+      { "field": "email", "message": "must be a valid email address" },
+      { "field": "password", "message": "must be at least 8 characters" }
+    ]
+  }
+}
+```
+
+Los códigos de error se definen en `internal/shared/errors/errors.go`. Los helpers `apierrors.Respond` y `apierrors.RespondWithDetails` construyen siempre esta estructura.
 
 Para listas paginadas, incluir `meta` con `page`, `limit`, `total`.
 

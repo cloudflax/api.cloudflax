@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
+	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
 	"github.com/cloudflax/api.cloudflax/internal/validator"
 	"github.com/gofiber/fiber/v3"
 )
@@ -37,13 +38,9 @@ func (h *Handler) ListUser(c fiber.Ctx) error {
 	users, err := h.service.ListUser()
 	if err != nil {
 		slog.Error("list users", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to list users")
 	}
-	return c.JSON(fiber.Map{
-		"data": users,
-	})
+	return c.JSON(fiber.Map{"data": users})
 }
 
 // GetUser gets a user by ID.
@@ -52,19 +49,13 @@ func (h *Handler) GetUser(c fiber.Ctx) error {
 	user, err := h.service.GetUser(id)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			slog.Debug("get user not found", "id", id, "error", err)
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "user not found",
-			})
+			slog.Debug("get user not found", "id", id)
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
 		slog.Error("get user", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get user")
 	}
-	return c.JSON(fiber.Map{
-		"data": user,
-	})
+	return c.JSON(fiber.Map{"data": user})
 }
 
 // CreateUser creates a new user.
@@ -72,33 +63,30 @@ func (h *Handler) CreateUser(c fiber.Ctx) error {
 	var req CreateUserRequest
 	if err := c.Bind().Body(&req); err != nil {
 		slog.Debug("create user bind error", "error", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Invalid request body")
 	}
 
 	if err := validator.Validate(req); err != nil {
 		slog.Debug("create user validation error", "error", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return apierrors.RespondWithDetails(
+				c, fiber.StatusUnprocessableEntity, apierrors.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, err.Error())
 	}
 
 	user, err := h.service.CreateUser(req.Name, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrDuplicateEmail) {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"error": "email already exists",
-			})
+			return apierrors.Respond(c, fiber.StatusConflict, apierrors.CodeEmailAlreadyExists, "Email already exists")
 		}
 		slog.Error("create user", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to create user")
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"data": user,
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
 }
 
 // UpdateUser updates a user by ID.
@@ -107,30 +95,21 @@ func (h *Handler) UpdateUser(c fiber.Ctx) error {
 	var req UpdateUserRequest
 	if err := c.Bind().Body(&req); err != nil {
 		slog.Debug("update user bind error", "error", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Invalid request body")
 	}
 	if req.Name == nil && req.Password == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "at least one field (name, password) is required",
-		})
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, "At least one field (name, password) is required")
 	}
+
 	user, err := h.service.UpdateUser(id, req.Name, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "user not found",
-			})
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
 		slog.Error("update user", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to update user")
 	}
-	return c.JSON(fiber.Map{
-		"data": user,
-	})
+	return c.JSON(fiber.Map{"data": user})
 }
 
 // DeleteUser deletes a user by ID.
@@ -138,14 +117,22 @@ func (h *Handler) DeleteUser(c fiber.Ctx) error {
 	id := c.Params("id")
 	if err := h.service.DeleteUser(id); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "user not found",
-			})
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
 		slog.Error("delete user", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to delete user")
 	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
+}
+
+// toErrorDetails converts validator.ValidationErrors to apierrors.ErrorDetail slice.
+func toErrorDetails(ve validator.ValidationErrors) []apierrors.ErrorDetail {
+	details := make([]apierrors.ErrorDetail, len(ve))
+	for i, fe := range ve {
+		details[i] = apierrors.ErrorDetail{
+			Field:   fe.Field,
+			Message: fe.Message,
+		}
+	}
+	return details
 }
