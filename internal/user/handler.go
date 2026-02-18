@@ -4,14 +4,15 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/cloudflax/api.cloudflax/internal/validator"
 	"github.com/gofiber/fiber/v3"
 )
 
 // CreateUserRequest is the request body for creating a user.
 type CreateUserRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name     string `json:"name" validate:"required,min=2,max=100"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=72"`
 }
 
 // UpdateUserRequest is the request body for updating a user.
@@ -75,11 +76,14 @@ func (h *Handler) CreateUser(c fiber.Ctx) error {
 			"error": "invalid request body",
 		})
 	}
-	if req.Name == "" || req.Email == "" || req.Password == "" {
+
+	if err := validator.Validate(req); err != nil {
+		slog.Debug("create user validation error", "error", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "name, email and password are required",
+			"error": err.Error(),
 		})
 	}
+
 	user, err := h.service.CreateUser(req.Name, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrDuplicateEmail) {

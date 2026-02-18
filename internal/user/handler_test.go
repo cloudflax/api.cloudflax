@@ -131,7 +131,7 @@ func TestCreateUser_Success(t *testing.T) {
 	app := fiber.New()
 	app.Post("/users", handler.CreateUser)
 
-	body := strings.NewReader(`{"name":"Alice","email":"alice@example.com","password":"secret123"}`)
+	body := strings.NewReader(`{"name":"Alice","email":"alice@example.com","password":"password123"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -161,7 +161,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	app := fiber.New()
 	app.Post("/users", handler.CreateUser)
 
-	body := strings.NewReader(`{"name":"New User","email":"exists@example.com","password":"secret123"}`)
+	body := strings.NewReader(`{"name":"New User","email":"exists@example.com","password":"password123"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -205,7 +205,7 @@ func TestCreateUser_DuplicateEmail_CaseInsensitive(t *testing.T) {
 	app := fiber.New()
 	app.Post("/users", handler.CreateUser)
 
-	body := strings.NewReader(`{"name":"Bob","email":"Alice@Example.com","password":"secret456"}`)
+	body := strings.NewReader(`{"name":"Bob","email":"Alice@Example.com","password":"password456"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	req.Header.Set("Content-Type", "application/json")
 
