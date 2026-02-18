@@ -8,16 +8,6 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ### Prioridad inmediata — Estandar de errores (API user)
 
-- [x] **0. Definir contrato de error** — Estructura única: `error.code`, `error.message`, `error.status`, `error.trace_id`, `error.details[]`
-- [x] **0.1 Catálogo de códigos de error de user** — Enumerar códigos estables (p. ej. `USER_NOT_FOUND`, `VALIDATION_ERROR`, `EMAIL_ALREADY_EXISTS`)
-- [x] **0.2 Política de HTTP status** — Mapear casos de user a `400/401/403/404/409/422/500`
-- [x] **0.3 Formato para errores simples** — Respuesta estándar cuando exista un único error de negocio o sistema
-- [x] **0.4 Formato para errores múltiples** — Respuesta estándar para validaciones con varios campos en una misma petición
-- [x] **0.5 Normalizar validaciones en handlers user** — Unificar mensajes y códigos de validación por campo
-- [x] **0.6 Error handler central para user** — Adaptar handlers para delegar al formato unificado
-- [x] **0.7 Actualizar tests de handler user** — Cubrir caso de error único y múltiples errores en una misma request
-- [x] **0.8 Documentar ejemplos de error** — Añadir ejemplos JSON (1 error y N errores) para frontend/integraciones
-
 ### Corto plazo — Usuario y acceso al SaaS
 
 **Base (modelo y rutas públicas)**
