@@ -9,9 +9,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 ### Corto plazo — Usuario y acceso al SaaS
 
 **Base (modelo y rutas públicas)**
-- [x] **1. Extender modelo User** — Email (único), password (hash), campos para login
-- [ ] **2. POST /users** — Registro de usuario (crear cuenta)
-- [ ] **3. Validación de entrada** — Validar body (email, password) con go-playground/validator
+- [ ] **1. Validación de entrada** — Validar body (email, password) con go-playground/validator
 
 **Autenticación**
 - [ ] **4. POST /auth/login** — Login (email + password), devolver token
