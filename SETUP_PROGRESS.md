@@ -11,7 +11,6 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 ### Corto plazo — Usuario y acceso al SaaS
 
 **Base (modelo y rutas públicas)**
-- [x] **1. Validación de entrada** — Validar body (email, password) con go-playground/validator
 
 **Autenticación**
 - [ ] **4. POST /auth/login** — Login (email + password), devolver token
