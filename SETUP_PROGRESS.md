@@ -6,16 +6,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Checklist
 
-### Prioridad inmediata — Estandar de errores (API user)
-
 ### Corto plazo — Usuario y acceso al SaaS
-
-**Base (modelo y rutas públicas)**
-
-**Autenticación**
-- [x] **4. POST /auth/login** — Login (email + password), devolver token
-- [x] **5. JWT** — Generación y validación de tokens (HS256, access 15min + refresh 7d con rotación)
-- [x] **6. Middleware de autenticación** — Proteger rutas que requieren login
 
 **Rutas protegidas y CRUD**
 - [ ] **7. GET /users/me** — Usuario actual (token en header)
