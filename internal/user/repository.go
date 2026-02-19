@@ -24,15 +24,6 @@ var ErrNotFound = fmt.Errorf("user not found")
 // ErrDuplicateEmail is returned when creating a user with an email that already exists.
 var ErrDuplicateEmail = fmt.Errorf("email already exists")
 
-// ListUser returns all users.
-func (repository *Repository) ListUser() ([]User, error) {
-	var users []User
-	if err := repository.db.Find(&users).Error; err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
-	}
-	return users, nil
-}
-
 // GetUserByEmail returns a user by email address.
 func (repository *Repository) GetUserByEmail(email string) (*User, error) {
 	var user User

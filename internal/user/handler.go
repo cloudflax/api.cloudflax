@@ -33,16 +33,6 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// ListUser lists all users.
-func (h *Handler) ListUser(c fiber.Ctx) error {
-	users, err := h.service.ListUser()
-	if err != nil {
-		slog.Error("list users", "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to list users")
-	}
-	return c.JSON(fiber.Map{"data": users})
-}
-
 // GetMe returns the authenticated user based on the userID stored in locals.
 func (h *Handler) GetMe(c fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(string)

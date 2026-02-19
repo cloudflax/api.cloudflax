@@ -8,7 +8,6 @@ import (
 // POST /users (registration) is public; all other endpoints require authentication.
 func Routes(router fiber.Router, h *Handler, authMiddleware fiber.Handler) {
 	router.Post("/users", h.CreateUser)
-	router.Get("/users", authMiddleware, h.ListUser)
 	router.Get("/users/me", authMiddleware, h.GetMe)
 	router.Put("/users/me", authMiddleware, h.UpdateMe)
 	router.Delete("/users/me", authMiddleware, h.DeleteMe)

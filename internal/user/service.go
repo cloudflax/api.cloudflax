@@ -30,11 +30,6 @@ func (s *Service) WithTokenRevoker(tr TokenRevoker) *Service {
 	return s
 }
 
-// ListUser returns all users.
-func (s *Service) ListUser() ([]User, error) {
-	return s.repository.ListUser()
-}
-
 // GetUser returns a user by ID.
 // Returns ErrNotFound for invalid UUID format or when the user does not exist.
 func (s *Service) GetUser(id string) (*User, error) {

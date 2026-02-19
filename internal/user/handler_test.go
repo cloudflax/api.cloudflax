@@ -97,53 +97,6 @@ func TestGetMe_UserNotFound(t *testing.T) {
 	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
 }
 
-func TestListUser_Empty(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	app := fiber.New()
-	app.Get("/users", handler.ListUser)
-
-	req := httptest.NewRequest("GET", "/users", nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	var result map[string]interface{}
-	require.NoError(t, json.Unmarshal(body, &result))
-	users, ok := result["data"].([]interface{})
-	require.True(t, ok)
-	assert.Empty(t, users)
-}
-
-func TestListUser_WithData(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	testUser := User{Name: "Test User", Email: "test@example.com"}
-	require.NoError(t, testUser.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&testUser).Error)
-
-	app := fiber.New()
-	app.Get("/users", handler.ListUser)
-
-	req := httptest.NewRequest("GET", "/users", nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	var result struct {
-		Data []User `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(body, &result))
-	require.Len(t, result.Data, 1)
-	assert.Equal(t, "Test User", result.Data[0].Name)
-}
-
 func TestCreateUser_Success(t *testing.T) {
 	handler := setupUserHandlerTest(t)
 
