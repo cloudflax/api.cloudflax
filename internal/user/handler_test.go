@@ -328,3 +328,127 @@ func TestDeleteUser_NotFound(t *testing.T) {
 	errResp := decodeErrorResponse(t, resp.Body)
 	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
 }
+
+func setupUpdateMe(t *testing.T, handler *Handler, userID string) *fiber.App {
+	t.Helper()
+	app := fiber.New()
+	app.Put("/users/me", func(c fiber.Ctx) error {
+		c.Locals("userID", userID)
+		return c.Next()
+	}, handler.UpdateMe)
+	return app
+}
+
+func TestUpdateMe_Unauthorized(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := fiber.New()
+	app.Put("/users/me", handler.UpdateMe)
+
+	req := httptest.NewRequest("PUT", "/users/me", strings.NewReader(`{"name":"New"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+}
+
+func TestUpdateMe_NoFieldsProvided(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Original", Email: "original@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := setupUpdateMe(t, handler, testUser.ID)
+
+	req := httptest.NewRequest("PUT", "/users/me", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+}
+
+func TestUpdateMe_UpdateName(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Old Name", Email: "updateme@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := setupUpdateMe(t, handler, testUser.ID)
+
+	req := httptest.NewRequest("PUT", "/users/me", strings.NewReader(`{"name":"New Name"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data User `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(t, "New Name", result.Data.Name)
+	assert.Equal(t, testUser.Email, result.Data.Email)
+	assert.Empty(t, result.Data.PasswordHash)
+}
+
+func TestUpdateMe_EmailIgnored(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Alice", Email: "alice.me@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := setupUpdateMe(t, handler, testUser.ID)
+
+	// email field in body must be silently ignored.
+	req := httptest.NewRequest("PUT", "/users/me", strings.NewReader(`{"name":"Alice Updated","email":"hacker@example.com"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data User `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(t, "Alice Updated", result.Data.Name)
+	assert.Equal(t, "alice.me@example.com", result.Data.Email, "email must not be updated")
+}
+
+func TestUpdateMe_ValidationError(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Bob", Email: "bob.me@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := setupUpdateMe(t, handler, testUser.ID)
+
+	// name too short (1 char), password too short.
+	req := httptest.NewRequest("PUT", "/users/me", strings.NewReader(`{"name":"X","password":"short"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.GreaterOrEqual(t, len(errResp.Error.Details), 1)
+}

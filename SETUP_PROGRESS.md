@@ -9,7 +9,7 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 ### Corto plazo — Módulo User
 
 - [x] **1. GET /users/me** — Devolver el usuario autenticado (userID desde token locals)
-- [ ] **2. PUT /users/me** — Actualizar el propio perfil sin necesitar el ID en la URL
+- [x] **2. PUT /users/me** — Actualizar el propio perfil sin necesitar el ID en la URL
 - [ ] **3. Revocar refresh tokens al eliminar usuario** — Llamar a `RevokeAllByUserID` desde el servicio de user al hacer DELETE
 
 ### Corto plazo — Módulo Auth
@@ -38,5 +38,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 2. PUT /users/me
+- **Siguiente paso:** 3. Revocar refresh tokens al eliminar usuario
 - **Última actualización:** 2026-02-19

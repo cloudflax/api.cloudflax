@@ -16,6 +16,13 @@ type CreateUserRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=72"`
 }
 
+// UpdateMeRequest is the request body for updating the authenticated user's profile.
+// At least one field must be present. Email cannot be changed.
+type UpdateMeRequest struct {
+	Name     *string `json:"name"     validate:"omitempty,min=2,max=100"`
+	Password *string `json:"password" validate:"omitempty,min=8,max=72"`
+}
+
 // Handler handles HTTP requests for users.
 type Handler struct {
 	service *Service
@@ -50,6 +57,44 @@ func (h *Handler) GetMe(c fiber.Ctx) error {
 		}
 		slog.Error("get me", "user_id", userID, "error", err)
 		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get user")
+	}
+	return c.JSON(fiber.Map{"data": user})
+}
+
+// UpdateMe updates the authenticated user's own profile.
+func (h *Handler) UpdateMe(c fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
+		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+	}
+
+	var req UpdateMeRequest
+	if err := c.Bind().Body(&req); err != nil {
+		slog.Debug("update me bind error", "error", err)
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Invalid request body")
+	}
+	if req.Name == nil && req.Password == nil {
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, "At least one field (name, password) is required")
+	}
+	if err := validator.Validate(req); err != nil {
+		slog.Debug("update me validation error", "error", err)
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return apierrors.RespondWithDetails(
+				c, fiber.StatusUnprocessableEntity, apierrors.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, err.Error())
+	}
+
+	user, err := h.service.UpdateUser(userID, req.Name, req.Password)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
+		}
+		slog.Error("update me", "user_id", userID, "error", err)
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to update user")
 	}
 	return c.JSON(fiber.Map{"data": user})
 }
