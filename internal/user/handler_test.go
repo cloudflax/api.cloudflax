@@ -1,7 +1,6 @@
 package user
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
@@ -143,69 +142,6 @@ func TestListUser_WithData(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &result))
 	require.Len(t, result.Data, 1)
 	assert.Equal(t, "Test User", result.Data[0].Name)
-}
-
-func TestGetUser_NotFound(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	app := fiber.New()
-	app.Get("/users/:id", handler.GetUser)
-
-	req := httptest.NewRequest("GET", "/users/00000000-0000-0000-0000-000000000000", nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-
-	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
-	assert.Equal(t, fiber.StatusNotFound, errResp.Error.Status)
-	assert.NotEmpty(t, errResp.Error.Message)
-}
-
-func TestGetUser_InvalidUUID(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	app := fiber.New()
-	app.Get("/users/:id", handler.GetUser)
-
-	// Malformed UUID (extra character in last segment) - previously returned 500
-	req := httptest.NewRequest("GET", "/users/a5a10f19-99e6-4ff1-bea4-b2de85f77d061", nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-
-	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
-}
-
-func TestGetUser_Found(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	testUser := User{Name: "Jane", Email: "jane@example.com"}
-	require.NoError(t, testUser.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&testUser).Error)
-
-	app := fiber.New()
-	app.Get("/users/:id", handler.GetUser)
-
-	req := httptest.NewRequest("GET", "/users/"+testUser.ID, nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	var result struct {
-		Data User `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(body, &result))
-	assert.Equal(t, testUser.ID, result.Data.ID)
-	assert.Equal(t, "Jane", result.Data.Name)
 }
 
 func TestCreateUser_Success(t *testing.T) {
@@ -356,85 +292,6 @@ func TestCreateUser_ValidationError_MultipleFields(t *testing.T) {
 	}
 	assert.Contains(t, fields, "email")
 	assert.Contains(t, fields, "password")
-}
-
-func TestUpdateUser_Success(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	testUser := User{Name: "Old Name", Email: "old@example.com"}
-	require.NoError(t, testUser.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&testUser).Error)
-
-	app := fiber.New()
-	app.Put("/users/:id", handler.UpdateUser)
-
-	newName := "New Name"
-	bodyBytes, _ := json.Marshal(map[string]string{"name": newName})
-	req := httptest.NewRequest("PUT", "/users/"+testUser.ID, bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	var result struct {
-		Data User `json:"data"`
-	}
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
-	assert.Equal(t, newName, result.Data.Name)
-	assert.Equal(t, testUser.Email, result.Data.Email)
-}
-
-func TestUpdateUser_EmailIgnored(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	testUser := User{Name: "Original", Email: "original@example.com"}
-	require.NoError(t, testUser.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&testUser).Error)
-
-	app := fiber.New()
-	app.Put("/users/:id", handler.UpdateUser)
-
-	// Sending email in body should be ignored; only name and password are updatable.
-	body := strings.NewReader(`{"name":"Updated Name","email":"ignored@example.com"}`)
-	req := httptest.NewRequest("PUT", "/users/"+testUser.ID, body)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	var result struct {
-		Data User `json:"data"`
-	}
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
-	assert.Equal(t, "Updated Name", result.Data.Name)
-	assert.Equal(t, "original@example.com", result.Data.Email, "email must not be updated")
-}
-
-func TestUpdateUser_NotFound(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	app := fiber.New()
-	app.Put("/users/:id", handler.UpdateUser)
-
-	body := strings.NewReader(`{"name":"Updated"}`)
-	req := httptest.NewRequest("PUT", "/users/00000000-0000-0000-0000-000000000000", body)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-
-	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
-	assert.Equal(t, fiber.StatusNotFound, errResp.Error.Status)
 }
 
 func TestDeleteUser_Success(t *testing.T) {

@@ -16,13 +16,6 @@ type CreateUserRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=72"`
 }
 
-// UpdateUserRequest is the request body for updating a user.
-// Only name and password can be updated; email is not allowed.
-type UpdateUserRequest struct {
-	Name     *string `json:"name"`
-	Password *string `json:"password"`
-}
-
 // Handler handles HTTP requests for users.
 type Handler struct {
 	service *Service
@@ -61,21 +54,6 @@ func (h *Handler) GetMe(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": user})
 }
 
-// GetUser gets a user by ID.
-func (h *Handler) GetUser(c fiber.Ctx) error {
-	id := c.Params("id")
-	user, err := h.service.GetUser(id)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			slog.Debug("get user not found", "id", id)
-			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
-		}
-		slog.Error("get user", "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get user")
-	}
-	return c.JSON(fiber.Map{"data": user})
-}
-
 // CreateUser creates a new user.
 func (h *Handler) CreateUser(c fiber.Ctx) error {
 	var req CreateUserRequest
@@ -105,29 +83,6 @@ func (h *Handler) CreateUser(c fiber.Ctx) error {
 		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to create user")
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
-}
-
-// UpdateUser updates a user by ID.
-func (h *Handler) UpdateUser(c fiber.Ctx) error {
-	id := c.Params("id")
-	var req UpdateUserRequest
-	if err := c.Bind().Body(&req); err != nil {
-		slog.Debug("update user bind error", "error", err)
-		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Invalid request body")
-	}
-	if req.Name == nil && req.Password == nil {
-		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, "At least one field (name, password) is required")
-	}
-
-	user, err := h.service.UpdateUser(id, req.Name, req.Password)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
-		}
-		slog.Error("update user", "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to update user")
-	}
-	return c.JSON(fiber.Map{"data": user})
 }
 
 // DeleteUser deletes a user by ID.
