@@ -6,17 +6,6 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Checklist
 
-### Corto plazo — Módulo User
-
-- [x] **1. GET /users/me** — Devolver el usuario autenticado (userID desde token locals)
-- [x] **2. PUT /users/me** — Actualizar el propio perfil sin necesitar el ID en la URL
-- [x] **3. DELETE /users/me** — Eliminar el propio usuario sin necesitar el ID en la URL (userID desde token locals)
-- [x] **4. Revocar refresh tokens al eliminar usuario** — Llamar a `RevokeAllByUserID` desde el servicio de user al hacer DELETE
-
-### Corto plazo — Módulo Auth
-
-- [ ] **5. Cleanup de refresh tokens expirados** — Eliminar registros con `expires_at` pasado (tarea periódica o al login)
-
 ### Corto plazo — Infraestructura
 
 - [ ] **6. CORS** — Headers para que el frontend consuma la API
@@ -39,6 +28,6 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 5. Cleanup de refresh tokens expirados
+- **Siguiente paso:** 6. CORS
 - **Última actualización:** 2026-02-19
 
