@@ -16,6 +16,45 @@ Este documento recoge el requisito de producto y técnico: **la Cuenta (empresa/
 
 ---
 
+## Proveedores de autenticación
+
+La **identidad (User)** es única con independencia de cómo haya iniciado sesión. La API puede soportar varios **proveedores de autenticación**; todos confluyen en la misma entidad User y en el mismo flujo de Cuenta y membresía.
+
+### Tipos de proveedor
+
+| Proveedor | Descripción | Estado en esta API |
+|-----------|-------------|--------------------|
+| **Email/contraseña** | Registro en la API con email y contraseña; la API almacena `password_hash` y valida con bcrypt. | **Implementado.** Login en `POST /auth/login`, registro en `POST /users`. |
+| **OAuth / login social** | El usuario inicia sesión con un proveedor externo (Google, GitHub, etc.). El proveedor devuelve un token o código; la API verifica la identidad y asocia o crea el User. | **Planeado.** Se almacenará en BD el proveedor y el identificador externo (tabla `user_auth_providers`); ver esquema más abajo. |
+
+### Cómo encaja con el modelo actual
+
+1. **Un User, una identidad**  
+   Tanto si el usuario se registra con email/contraseña como si lo hace con Google (en el futuro), el resultado es **un mismo User** en la base de datos. No hay “dos usuarios” por persona; hay una sola fila en `users` vinculada a uno o más proveedores mediante la tabla `user_auth_providers` (proveedor + identificador externo).
+
+2. **Mismo flujo tras el login**  
+   Una vez autenticado (por el proveedor que sea), el usuario recibe el mismo tipo de **JWT** y el middleware pone en contexto el mismo **userID** (y email). A partir de ahí, el comportamiento es idéntico:
+   - Si no tiene Cuenta → el cliente debe guiar al wizard (crear Account + AccountMember).
+   - Si tiene Cuenta(s) → el cliente envía `account_id` (o slug) y la API filtra por Cuenta y valida membresía.
+
+3. **Onboarding independiente del proveedor**  
+   El wizard descrito más abajo (registro → crear Account → usar la app en contexto de Cuenta) se aplica **igual** para usuarios que llegaron por email/contraseña o por OAuth. El paso 1 es “obtener una sesión válida (User identificado)”; los pasos 2 y 3 (crear Account, usar la app con Cuenta) son los mismos.
+
+4. **Resumen de conexión**  
+   - **Proveedor de autenticación** = *cómo* se obtiene la identidad (email/password hoy; OAuth mañana).  
+   - **User** = la identidad única; no depende del proveedor.  
+   - **Account / AccountMember** = dueña de los datos y membresía; se crean y usan **después** de la autenticación, con la misma lógica para todos los proveedores.
+
+5. **Requisito: almacenar proveedores en base de datos**  
+   La API debe **almacenar en base de datos** los proveedores de autenticación vinculados a cada User. Así se permite:
+   - Vincular la misma identidad (User) a varios proveedores (p. ej. email y Google).
+   - En sucesivos logins (OAuth o email), resolver de forma unívoca qué User corresponde a un par `proveedor + identificador externo`.
+   - Evitar que un mismo identificador externo (p. ej. `sub` de Google) se asocie a más de un User (unicidad por proveedor + identificador).
+
+Con esto, “proveedores de autenticación” queda acotado a la capa de **login/registro**; el resto del documento (propiedad de datos, contexto de petición, wizard, filtrado por Cuenta) se mantiene y aplica por igual a todos ellos.
+
+---
+
 ## Implicaciones
 
 1. **Aislamiento de datos**  
@@ -60,13 +99,15 @@ A continuación se describe cómo se traduce el modelo conceptual en tablas y re
 
 | Entidad | Tabla | Atributos principales | Notas |
 |--------|--------|------------------------|--------|
-| **User** | `users` | `id` (PK), `name`, `email`, `password_hash`, `created_at`, `updated_at`, `deleted_at` | Identidad de la persona. Ya implementado. |
+| **User** | `users` | `id` (PK), `name`, `email`, `password_hash`, `created_at`, `updated_at`, `deleted_at` | Identidad de la persona. Ya implementado. La vinculación con proveedores (email, OAuth) se hace vía `user_auth_providers`. |
+| **UserAuthProvider** | `user_auth_providers` | `id` (PK), `user_id` (FK), `provider`, `provider_subject_id`, `created_at`, `updated_at` | Un User puede tener varios proveedores. UNIQUE(provider, provider_subject_id). Para email se usa el propio email como `provider_subject_id`; para OAuth, el `sub` (o equivalente) del proveedor. |
 | **Account** | `accounts` | `id` (PK), `name`, `slug` (único), `created_at`, `updated_at`, `deleted_at` | Tenant/empresa; dueña de los datos. |
 | **AccountMember** | `account_members` | `id` (PK), `account_id` (FK), `user_id` (FK), `role`, `created_at`, `updated_at` | Relación N:M User–Account con rol. UNIQUE(account_id, user_id). |
 | **Recurso de negocio** (ej. factura, proyecto) | p. ej. `invoices` | `id` (PK), `account_id` (FK, NOT NULL), `issued_by_user_id` (FK, nullable), … | Todo recurso de negocio tiene `account_id`; opcionalmente un usuario responsable. |
 
 ### Relaciones
 
+- **User → UserAuthProvider:** uno a muchos. Cada User puede tener varias filas en `user_auth_providers` (email, google, github, etc.). La combinación (provider, provider_subject_id) es única globalmente para resolver la identidad en el login.
 - **User ↔ Account:** muchos a muchos, a través de `account_members`. Un User puede pertenecer a varias Accounts; una Account tiene muchos Users (miembros).
 - **Account → Recursos de negocio:** uno a muchos. Cada recurso (proyecto, factura, ítem, etc.) pertenece a una sola Account (`account_id`).
 - **User → Recursos de negocio (atribución):** opcional. Campos como `issued_by_user_id`, `created_by_user_id` indican quién realizó la acción dentro de la Account; la propiedad del dato sigue siendo de la Account.
@@ -75,6 +116,7 @@ A continuación se describe cómo se traduce el modelo conceptual en tablas y re
 
 ```mermaid
 erDiagram
+    users ||--o{ user_auth_providers : "tiene"
     users ||--o{ account_members : "es miembro"
     accounts ||--o{ account_members : "tiene miembros"
     accounts ||--o{ invoices : "posee"
@@ -88,6 +130,15 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         timestamp deleted_at
+    }
+
+    user_auth_providers {
+        uuid id PK
+        uuid user_id FK
+        string provider
+        string provider_subject_id
+        timestamp created_at
+        timestamp updated_at
     }
 
     accounts {
@@ -131,7 +182,7 @@ En este proyecto la API REST se diseña para que **nunca se considere válido un
 
 | Paso | Qué hace el cliente | Comportamiento / endpoints de esta API |
 |------|---------------------|----------------------------------------|
-| **1** | Registro (email/contraseña o login social). | La API crea el **User** (identidad). Aún no hay Account. |
+| **1** | Registro o login (email/contraseña; en el futuro también OAuth/login social). | La API identifica o crea el **User** (identidad). Aún no hay Account. Ver [Proveedores de autenticación](#proveedores-de-autenticación). |
 | **2** | Envía nombre del equipo/empresa (un solo campo). | La API crea la **Account** (nombre + slug) y el **AccountMember** vinculando User ↔ Account con rol por defecto (ej. `owner` o `admin`). |
 | **3** | Usa la app con una Cuenta activa. | El cliente envía en cada petición el `account_id` (o slug). La API valida membresía y filtra por esa Cuenta. |
 
