@@ -6,33 +6,37 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Checklist
 
-### Corto plazo — Usuario y acceso al SaaS
+### Corto plazo — Módulo User
 
-**Rutas protegidas y CRUD**
-- [ ] **7. GET /users/me** — Usuario actual (token en header)
-- [ ] **8. PUT /users/:id** — Actualizar usuario
-- [ ] **9. DELETE /users/:id** — Eliminar usuario (soft delete)
+- [ ] **1. GET /users/me** — Devolver el usuario autenticado (userID desde token locals)
+- [ ] **2. PUT /users/me** — Actualizar el propio perfil sin necesitar el ID en la URL
+- [ ] **3. Revocar refresh tokens al eliminar usuario** — Llamar a `RevokeAllByUserID` desde el servicio de user al hacer DELETE
 
-**Infraestructura para frontend**
-- [ ] **10. CORS** — Headers para que el frontend consuma la API
-- [ ] **11. Request ID** — X-Request-ID para tracing
-- [ ] **12. Error handler centralizado** — Respuestas de error consistentes
+### Corto plazo — Módulo Auth
+
+- [ ] **4. Cleanup de refresh tokens expirados** — Eliminar registros con `expires_at` pasado (tarea periódica o al login)
+
+### Corto plazo — Infraestructura
+
+- [ ] **5. CORS** — Headers para que el frontend consuma la API
+- [ ] **6. Request ID** — Propagar `X-Request-ID` para tracing
+- [ ] **7. Error handler centralizado** — Fiber error handler global para respuestas de error consistentes
 
 ### Medio plazo
 
-- [ ] **13. CI/CD** — GitHub Actions o GitLab CI
-- [ ] **14. Paginación** — ?page=1&limit=10 en listas
+- [ ] **8. CI/CD** — GitHub Actions o GitLab CI
+- [ ] **9. Paginación** — `?page=1&limit=10` en listas
 
 ### Largo plazo
 
-- [ ] **15. Rate limiting** — Límite de requests por IP
-- [ ] **16. API versioning** — Rutas bajo /api/v1/
-- [ ] **17. Métricas y tracing** — Prometheus, OpenTelemetry
-- [ ] **18. Documentación API** — OpenAPI/Swagger
+- [ ] **10. Rate limiting** — Límite de requests por IP
+- [ ] **11. API versioning** — Rutas bajo `/api/v1/`
+- [ ] **12. Métricas y tracing** — Prometheus, OpenTelemetry
+- [ ] **13. Documentación API** — OpenAPI/Swagger
 
 ---
 
 ## Estado actual
 
-- **Siguiente paso:** 7. GET /users/me
-- **Última actualización:** 2026-02-18
+- **Siguiente paso:** 1. GET /users/me
+- **Última actualización:** 2026-02-19
