@@ -94,7 +94,7 @@ sequenceDiagram
 | Entidad | Tabla | Atributos principales | Notas |
 |--------|--------|------------------------|--------|
 | **User** | `users` | `id` (PK), `name`, `email`, `password_hash`, `email_verified_at` (opcional), `created_at`, `updated_at`, `deleted_at` | Identidad. Vinculación con proveedores vía `user_auth_providers`. |
-| **UserAuthProvider** | `user_auth_providers` | `id` (PK), `user_id` (FK), `provider`, `provider_subject_id`, `created_at`, `updated_at` | UNIQUE(provider, provider_subject_id). |
+| **UserAuthProvider** | `user_auth_providers` | `id` (PK), `user_id` (FK), `provider`, `provider_subject_id`, `created_at`, `updated_at` | `provider` es enum (google, facebook, credentials, …). UNIQUE(provider, provider_subject_id). |
 | **Account** | `accounts` | `id` (PK), `name`, `slug` (único), `created_at`, `updated_at`, `deleted_at` | Tenant; dueña de los datos. |
 | **AccountMember** | `account_members` | `id` (PK), `account_id` (FK), `user_id` (FK), `role`, `created_at`, `updated_at` | UNIQUE(account_id, user_id). |
 | **Recurso de negocio** | p. ej. `invoices` | `id` (PK), `account_id` (FK), `issued_by_user_id` (FK, nullable), … | Siempre `account_id`; opcional atribución a User. |
@@ -157,7 +157,7 @@ erDiagram
     invoices {
         uuid id PK
         uuid account_id FK
-        uuid issued_by_user_id FK "nullable"
+        uuid issued_by_user_id FK
         string number
         decimal total
         timestamp created_at
