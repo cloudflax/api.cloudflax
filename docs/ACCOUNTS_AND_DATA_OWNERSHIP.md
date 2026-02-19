@@ -120,3 +120,56 @@ erDiagram
 ```
 
 *Nota: `invoices` es un ejemplo de recurso de negocio; el mismo patrón aplica a proyectos, ítems, suscripciones, etc.: `account_id` obligatorio y, si aplica, FKs de atribución a usuario.*
+
+---
+
+## Wizard de configuración (onboarding) — Comportamiento de la API
+
+En este proyecto la API REST se diseña para que **nunca se considere válido un contexto sin Cuenta**: tras el registro del User, el siguiente paso lógico es crear la Account y el AccountMember. La API debe exponer los endpoints y las respuestas necesarias para que un cliente (p. ej. un frontend) pueda implementar un flujo tipo wizard (estilo Slack/Asana) y dejar los datos siempre asociados a una Cuenta desde el primer uso.
+
+### Flujo que la API debe soportar
+
+| Paso | Qué hace el cliente | Comportamiento / endpoints de esta API |
+|------|---------------------|----------------------------------------|
+| **1** | Registro (email/contraseña o login social). | La API crea el **User** (identidad). Aún no hay Account. |
+| **2** | Envía nombre del equipo/empresa (un solo campo). | La API crea la **Account** (nombre + slug) y el **AccountMember** vinculando User ↔ Account con rol por defecto (ej. `owner` o `admin`). |
+| **3** | Usa la app con una Cuenta activa. | El cliente envía en cada petición el `account_id` (o slug). La API valida membresía y filtra por esa Cuenta. |
+
+El mínimo viable que la API debe permitir es: **registro de User → creación de Account + AccountMember → uso de recursos siempre en contexto de Cuenta**.
+
+### Por qué este diseño en la API
+
+- **Account desde el inicio:** La API no expone un estado "usuario sin Cuenta" para uso normal; el endpoint de creación de Account en onboarding deja al User con al menos una Account. Todo recurso de negocio se crea bajo una Account.
+- **Slug desde el primer recurso:** La Account se crea con nombre y slug únicos; la API puede usar el slug en rutas o en identificadores de workspace.
+- **Un solo camino:** No hace falta un flujo alternativo "crear cuenta después" a nivel de API; el endpoint de creación de Account en contexto de onboarding es el camino estándar para usuarios recién registrados.
+- **Escalable:** Si más adelante el User pertenece a varias Cuentas, la API ya filtra por `account_id`; el cliente solo necesita un selector de workspace.
+
+### Contrato de la API (endpoints y respuestas)
+
+1. **Estado “onboarding incompleto”**  
+   Si el User existe pero no tiene ninguna Account (no hay fila en `account_members`), **esta API** debe indicarlo para que el cliente pueda redirigir al paso de creación de Account. Opciones: campo `onboarding_complete: false` en la respuesta de `GET /users/me` (o equivalente), o un claim en el JWT. El cliente decide la redirección; la API solo expone el estado.
+
+2. **Creación de Account (onboarding)**  
+   Un endpoint en **esta API**, por ejemplo `POST /accounts` (o `POST /onboarding/account` si se quiere separar), que:
+   - Acepta en el body `name` (y opcionalmente `slug` si se permite custom).
+   - Crea la Account en DB.
+   - Crea el AccountMember con el `user_id` del JWT y rol por defecto (ej. `owner`).
+   - Responde con la Account creada (incluyendo `id` y `slug`). El cliente usa ese `account_id` (o slug) como contexto en las siguientes peticiones.
+
+3. **Slug**  
+   La API genera el slug a partir del nombre (lowercase, sin espacios, caracteres no alfanuméricos reemplazados o eliminados). Si el slug ya existe, se añade sufijo (ej. `acme`, `acme-2`). La unicidad se garantiza en DB (`accounts.slug` UNIQUE).
+
+4. **Varias Cuentas (más adelante)**  
+   La invitación a otra Account se traduce en crear un nuevo AccountMember (endpoint que se defina en esta API). El wizard solo garantiza **al menos una** Account tras el registro; el resto (cambiar de workspace, listar Cuentas del User) sigue el mismo modelo de “Contexto de la petición” y “Usuarios con varias cuentas” de este documento.
+
+### Resumen del flujo (vista API)
+
+```
+Cliente: registro → API crea User
+       ↓
+Cliente: "nombre del equipo" → API: POST /accounts (o /onboarding/account) → Account + AccountMember creados
+       ↓
+Cliente: peticiones con account_id/slug → API filtra por Cuenta y valida membresía
+```
+
+Con esto, el comportamiento de **esta API REST** y el modelo de datos (Account como dueña de los datos, User como identidad, AccountMember como relación) quedan alineados desde el primer uso.
