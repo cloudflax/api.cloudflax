@@ -130,7 +130,7 @@ erDiagram
     user_auth_providers {
         uuid id PK
         uuid user_id FK
-        string provider
+        string provider "enum"
         string provider_subject_id
         timestamp created_at
         timestamp updated_at
@@ -164,6 +164,8 @@ erDiagram
         timestamp updated_at
     }
 ```
+
+**Nota:** En `user_auth_providers`, el campo `provider` es un **enum** con valores: `google`, `facebook`, `credentials`, etc.
 
 ---
 
