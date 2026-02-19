@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/cloudflax/api.cloudflax/internal/app"
+	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/config"
 	"github.com/cloudflax/api.cloudflax/internal/logger"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
@@ -25,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := database.RunMigrations(&user.User{}); err != nil {
+	if err := database.RunMigrations(&user.User{}, &auth.RefreshToken{}); err != nil {
 		slog.Error("migrations", "error", err)
 		os.Exit(1)
 	}

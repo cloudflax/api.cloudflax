@@ -12,7 +12,7 @@ func Run(cfg *config.Config) error {
 	app := fiber.New()
 
 	app.Use(middleware.Logger())
-	server.Mount(app)
+	server.Mount(app, cfg)
 
 	return app.Listen(":" + cfg.Port)
 }

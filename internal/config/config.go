@@ -13,8 +13,9 @@ import (
 
 // Config holds the application configuration.
 type Config struct {
-	Port     string
-	LogLevel string // debug, info, warn, error
+	Port      string
+	LogLevel  string // debug, info, warn, error
+	JWTSecret string
 
 	DBHost     string
 	DBPort     int
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		Port:      getEnv("PORT", "3000"),
 		LogLevel:  getEnv("LOG_LEVEL", "info"),
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
+		JWTSecret: getEnv("JWT_SECRET", ""),
 	}
 
 	secretName := getEnv("AWS_SECRET_NAME", "")
@@ -96,6 +98,9 @@ func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.D
 func (c *Config) Validate() error {
 	if c.Port == "" {
 		return fmt.Errorf("PORT is required")
+	}
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWT_SECRET is required")
 	}
 	if c.DBHost == "" {
 		return fmt.Errorf("DB_HOST is required")

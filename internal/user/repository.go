@@ -33,6 +33,18 @@ func (repository *Repository) ListUser() ([]User, error) {
 	return users, nil
 }
 
+// GetUserByEmail returns a user by email address.
+func (repository *Repository) GetUserByEmail(email string) (*User, error) {
+	var user User
+	if err := repository.db.Where("email = ?", email).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get user by email: %w", err)
+	}
+	return &user, nil
+}
+
 // GetUser returns a user by ID.
 func (repository *Repository) GetUser(id string) (*User, error) {
 	var user User

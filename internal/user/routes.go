@@ -5,10 +5,11 @@ import (
 )
 
 // Routes mounts user routes on the given router.
-func Routes(router fiber.Router, h *Handler) {
-	router.Get("/users", h.ListUser)
-	router.Get("/users/:id", h.GetUser)
+// POST /users (registration) is public; all other endpoints require authentication.
+func Routes(router fiber.Router, h *Handler, authMiddleware fiber.Handler) {
 	router.Post("/users", h.CreateUser)
-	router.Put("/users/:id", h.UpdateUser)
-	router.Delete("/users/:id", h.DeleteUser)
+	router.Get("/users", authMiddleware, h.ListUser)
+	router.Get("/users/:id", authMiddleware, h.GetUser)
+	router.Put("/users/:id", authMiddleware, h.UpdateUser)
+	router.Delete("/users/:id", authMiddleware, h.DeleteUser)
 }

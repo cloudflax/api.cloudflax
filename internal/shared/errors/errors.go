@@ -18,6 +18,14 @@ const (
 	CodeEmailAlreadyExists ErrorCode = "EMAIL_ALREADY_EXISTS"
 )
 
+// Auth error codes.
+const (
+	CodeInvalidCredentials ErrorCode = "INVALID_CREDENTIALS"
+	CodeUnauthorized       ErrorCode = "UNAUTHORIZED"
+	CodeTokenExpired       ErrorCode = "TOKEN_EXPIRED"
+	CodeTokenInvalid       ErrorCode = "TOKEN_INVALID"
+)
+
 // ErrorDetail describes a single field-level validation failure.
 type ErrorDetail struct {
 	Field   string `json:"field"`

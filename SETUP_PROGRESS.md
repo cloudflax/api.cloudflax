@@ -13,9 +13,9 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 **Base (modelo y rutas públicas)**
 
 **Autenticación**
-- [ ] **4. POST /auth/login** — Login (email + password), devolver token
-- [ ] **5. JWT** — Generación y validación de tokens
-- [ ] **6. Middleware de autenticación** — Proteger rutas que requieren login
+- [x] **4. POST /auth/login** — Login (email + password), devolver token
+- [x] **5. JWT** — Generación y validación de tokens (HS256, access 15min + refresh 7d con rotación)
+- [x] **6. Middleware de autenticación** — Proteger rutas que requieren login
 
 **Rutas protegidas y CRUD**
 - [ ] **7. GET /users/me** — Usuario actual (token en header)
@@ -43,5 +43,5 @@ Seguimiento paso a paso de la configuración inicial del proyecto.
 
 ## Estado actual
 
-- **Siguiente paso:** 4. POST /auth/login
+- **Siguiente paso:** 7. GET /users/me
 - **Última actualización:** 2026-02-18
