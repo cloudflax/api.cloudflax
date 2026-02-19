@@ -1,19 +1,33 @@
 package user
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 )
 
+// TokenRevoker is the subset of the auth repository the user service depends on
+// to revoke refresh tokens when a user is deleted.
+type TokenRevoker interface {
+	RevokeAllByUserID(userID string) error
+}
+
 // Service handles user business logic.
 type Service struct {
-	repository *Repository
+	repository   *Repository
+	tokenRevoker TokenRevoker
 }
 
 // NewService creates a new user service.
 func NewService(repository *Repository) *Service {
 	return &Service{repository: repository}
+}
+
+// WithTokenRevoker sets the token revoker used to invalidate refresh tokens on user deletion.
+func (s *Service) WithTokenRevoker(tr TokenRevoker) *Service {
+	s.tokenRevoker = tr
+	return s
 }
 
 // ListUser returns all users.
@@ -67,10 +81,18 @@ func (s *Service) UpdateUser(id string, name *string, password *string) (*User, 
 	return user, nil
 }
 
-// DeleteUser soft-deletes a user by ID.
+// DeleteUser soft-deletes a user by ID and revokes all their refresh tokens.
 func (s *Service) DeleteUser(id string) error {
 	if _, err := uuid.Parse(id); err != nil {
 		return ErrNotFound
 	}
-	return s.repository.Delete(id)
+	if err := s.repository.Delete(id); err != nil {
+		return err
+	}
+	if s.tokenRevoker != nil {
+		if err := s.tokenRevoker.RevokeAllByUserID(id); err != nil {
+			return fmt.Errorf("revoke tokens after user delete: %w", err)
+		}
+	}
+	return nil
 }

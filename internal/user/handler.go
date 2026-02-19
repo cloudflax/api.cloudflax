@@ -130,6 +130,23 @@ func (h *Handler) CreateUser(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
 }
 
+// DeleteMe deletes the authenticated user based on the userID stored in locals.
+func (h *Handler) DeleteMe(c fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
+		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+	}
+
+	if err := h.service.DeleteUser(userID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
+		}
+		slog.Error("delete me", "user_id", userID, "error", err)
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to delete user")
+	}
+	return c.Status(fiber.StatusNoContent).Send(nil)
+}
+
 // DeleteUser deletes a user by ID.
 func (h *Handler) DeleteUser(c fiber.Ctx) error {
 	id := c.Params("id")

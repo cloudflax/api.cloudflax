@@ -294,6 +294,71 @@ func TestCreateUser_ValidationError_MultipleFields(t *testing.T) {
 	assert.Contains(t, fields, "password")
 }
 
+func setupDeleteMe(t *testing.T, handler *Handler, userID string) *fiber.App {
+	t.Helper()
+	app := fiber.New()
+	app.Delete("/users/me", func(c fiber.Ctx) error {
+		c.Locals("userID", userID)
+		return c.Next()
+	}, handler.DeleteMe)
+	return app
+}
+
+func TestDeleteMe_Success(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Me To Delete", Email: "deleteme@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := setupDeleteMe(t, handler, testUser.ID)
+
+	req := httptest.NewRequest("DELETE", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusNoContent, resp.StatusCode)
+
+	var deleted User
+	dbResult := database.DB.Unscoped().First(&deleted, "id = ?", testUser.ID)
+	require.NoError(t, dbResult.Error)
+	assert.True(t, deleted.DeletedAt.Valid, "user should be soft-deleted")
+}
+
+func TestDeleteMe_Unauthorized(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := fiber.New()
+	app.Delete("/users/me", handler.DeleteMe)
+
+	req := httptest.NewRequest("DELETE", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+}
+
+func TestDeleteMe_UserNotFound(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := setupDeleteMe(t, handler, "00000000-0000-0000-0000-000000000000")
+
+	req := httptest.NewRequest("DELETE", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
+}
+
 func TestDeleteUser_Success(t *testing.T) {
 	handler := setupUserHandlerTest(t)
 

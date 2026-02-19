@@ -23,7 +23,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 
 	auth.Routes(app, authHandler, requireAuth)
 
-	userService := user.NewService(userRepository)
+	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
 	userHandler := user.NewHandler(userService)
 	user.Routes(app, userHandler, requireAuth)
 }
