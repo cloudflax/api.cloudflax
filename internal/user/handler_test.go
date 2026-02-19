@@ -359,41 +359,6 @@ func TestDeleteMe_UserNotFound(t *testing.T) {
 	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
 }
 
-func TestDeleteUser_Success(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	testUser := User{Name: "To Delete", Email: "delete@example.com"}
-	require.NoError(t, testUser.SetPassword("secret123"))
-	require.NoError(t, database.DB.Create(&testUser).Error)
-
-	app := fiber.New()
-	app.Delete("/users/:id", handler.DeleteUser)
-
-	req := httptest.NewRequest("DELETE", "/users/"+testUser.ID, nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusNoContent, resp.StatusCode)
-}
-
-func TestDeleteUser_NotFound(t *testing.T) {
-	handler := setupUserHandlerTest(t)
-
-	app := fiber.New()
-	app.Delete("/users/:id", handler.DeleteUser)
-
-	req := httptest.NewRequest("DELETE", "/users/00000000-0000-0000-0000-000000000000", nil)
-	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-
-	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
-}
-
 func setupUpdateMe(t *testing.T, handler *Handler, userID string) *fiber.App {
 	t.Helper()
 	app := fiber.New()

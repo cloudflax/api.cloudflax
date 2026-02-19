@@ -147,19 +147,6 @@ func (h *Handler) DeleteMe(c fiber.Ctx) error {
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
-// DeleteUser deletes a user by ID.
-func (h *Handler) DeleteUser(c fiber.Ctx) error {
-	id := c.Params("id")
-	if err := h.service.DeleteUser(id); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
-		}
-		slog.Error("delete user", "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to delete user")
-	}
-	return c.Status(fiber.StatusNoContent).Send(nil)
-}
-
 // toErrorDetails converts validator.ValidationErrors to apierrors.ErrorDetail slice.
 func toErrorDetails(ve validator.ValidationErrors) []apierrors.ErrorDetail {
 	details := make([]apierrors.ErrorDetail, len(ve))
