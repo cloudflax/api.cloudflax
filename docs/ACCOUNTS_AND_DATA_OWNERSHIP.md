@@ -41,9 +41,41 @@ Solo cuando el User existe y (según política) **ha verificado su email**:
 
 ---
 
-## 3. Flujo de la API (resumen)
+## 3. Inicio de sesión (login) (paso a paso)
 
-El flujo completo es: **Registro → Validación de email → Crear cuenta → Uso con Account**.
+El login es el flujo por el que un User ya registrado obtiene un **JWT** para consumir la API:
+
+1. **Cliente envía credenciales**  
+   Ej. `POST /auth/login` (o `POST /login`) con email + password, o datos del proveedor OAuth (token/code).
+
+2. **API valida contra User y UserAuthProvider**  
+   - Resuelve la identidad con `user_auth_providers` (provider + provider_subject_id).  
+   - Para `credentials`: verifica password contra `password_hash`.  
+   - (Opcional) Exige `email_verified_at` no nulo para permitir login completo.
+
+3. **API genera y devuelve el JWT**  
+   - Firma un token con al menos `user_id` (y opcionalmente `email`, `account_id` activo, roles, expiración).  
+   - Respuesta típica: `200 OK` con body `{ "access_token": "<JWT>", "token_type": "Bearer", "expires_in": ... }`.
+
+4. **Cliente usa el JWT en peticiones posteriores**  
+   Header `Authorization: Bearer <JWT>`; la API identifica al User y valida membresía cuando se envía `account_id`.
+
+**Resumen:** Login = credenciales → validar User + proveedor → **generar JWT** → devolver token → cliente lo envía en cada petición.
+
+---
+
+## 4. Flujo de la API (resumen)
+
+El flujo completo es: **Registro → Validación de email → Login (obtener JWT) → Crear cuenta → Uso con Account**.
+
+### Cuándo se crea el JWT
+
+| Momento | Qué pasa |
+|--------|----------|
+| **Registro** | Opcional: la API puede devolver un JWT limitado (p. ej. solo `user_id`, claim `email_verified: false`) para que el cliente pueda llamar a “reenviar verificación” o mostrar pantalla de verificación. Si no se devuelve JWT, el usuario debe hacer **login** después de verificar el email para obtenerlo. |
+| **Login** | Siempre: tras validar credenciales (y política de email verificado), la API **genera el JWT**, lo firma y lo devuelve en la respuesta. Ese token es el que se usa para `POST /accounts`, para enviar `account_id` y para todas las peticiones autenticadas. |
+
+En ambos casos el JWT se crea en la API (mismo servicio de firma/claims); la diferencia es **cuándo** se emite: en el registro (opcional) o en el login (habitual).
 
 ### Diagrama de secuencia del registro (Mermaid)
 
@@ -60,34 +92,66 @@ sequenceDiagram
   A->>A: Guardar en user_auth_providers
   A->>S: Disparar envío de correo de verificación
   S->>U: Email con link o código
+  A->>C: 201 (opcional: JWT limitado o sin JWT)
 
   Note over C,U: 2. Validación de email
   U->>A: Clic en link o introduce código
   A->>A: Actualizar email_verified_at
 
-  Note over C,U: 3. Creación de cuenta
-  C->>A: POST /accounts (nombre del equipo)
-  A->>A: Crear Account + AccountMember (owner)
+  Note over C,U: 3. Login (obtener JWT)
+  C->>A: POST /auth/login (credenciales)
+  A->>A: Validar User + user_auth_providers
+  A->>A: Generar JWT
+  A->>C: 200 + access_token (JWT)
+
+  Note over C,U: 4. Creación de cuenta
+  C->>A: POST /accounts (nombre del equipo) [Authorization: Bearer JWT]
+  A->>A: Crear Account + AccountMember (user_id del JWT)
   A->>C: 201 Created
 
-  Note over C,U: 4. Uso con Account
-  C->>A: Peticiones con header account_id
-  A->>A: Validar membresía, filtrar por Account
+  Note over C,U: 5. Uso con Account
+  C->>A: Peticiones con header account_id + Bearer JWT
+  A->>A: Validar JWT, membresía, filtrar por Account
   A->>C: Respuesta (datos en contexto de la Account)
 ```
 
 ![Flujo de registro y uso de la API](images/api-flow-registration-account.png)
 
+### Diagrama de secuencia del login (Mermaid)
+
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant A as API
+
+  C->>A: POST /auth/login (email + password u OAuth)
+  A->>A: Resolver User por user_auth_providers
+  A->>A: Validar password (si provider = credentials)
+  alt Credenciales inválidas
+    A->>C: 401 Unauthorized
+  else OK (y email verificado si aplica)
+    A->>A: Generar JWT (user_id, exp, etc.)
+    A->>C: 200 OK { access_token, token_type, expires_in }
+  end
+  Note over C: Cliente guarda JWT y lo envía en Authorization
+  C->>A: Peticiones con Authorization: Bearer <JWT>
+  A->>A: Extraer user_id del JWT, validar firma/exp
+  A->>C: Respuesta según recurso
+```
+
+![Flujo de login y emisión de JWT](images/api-flow-login-jwt.png)
+
 | Paso | Quién | Qué hace la API |
 |------|--------|------------------|
-| 1 | Cliente | Registro (email/password u OAuth). | Crea/actualiza User; guarda proveedor en `user_auth_providers`. |
+| 1 | Cliente | Registro (email/password u OAuth). | Crea/actualiza User; guarda proveedor en `user_auth_providers`; opcionalmente devuelve JWT limitado. |
 | 2 | Sistema | — | Envía correo de verificación. Usuario debe validar. |
-| 3 | Cliente | Envía nombre del equipo (crear cuenta). | Crea Account + AccountMember (solo si email verificado). |
-| 4 | Cliente | Peticiones con `account_id`. | Valida membresía; filtra por Account (y User cuando aplique). |
+| 3 | Cliente | Login (credenciales). | Valida User + proveedor; **genera y devuelve JWT**. |
+| 4 | Cliente | Envía nombre del equipo (crear cuenta) con JWT. | Crea Account + AccountMember (solo si email verificado; `user_id` del JWT). |
+| 5 | Cliente | Peticiones con `account_id` y Bearer JWT. | Valida JWT y membresía; filtra por Account (y User cuando aplique). |
 
 ---
 
-## 4. Modelo entidad-relación (base de datos)
+## 5. Modelo entidad-relación (base de datos)
 
 ### Entidades y atributos
 
@@ -169,7 +233,7 @@ erDiagram
 
 ---
 
-## 5. Contexto de petición y autorización
+## 6. Contexto de petición y autorización
 
 - **Autenticación:** identificar al User (JWT).
 - **Contexto de Cuenta:** el cliente envía `account_id` (o slug) en header o token; la API **valida membresía** y **filtra todas las lecturas/escrituras** por esa Account.
