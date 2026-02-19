@@ -115,8 +115,6 @@ sequenceDiagram
   A->>C: Respuesta (datos en contexto de la Account)
 ```
 
-![Flujo de registro y uso de la API](images/api-flow-registration-account.png)
-
 ### Diagrama de secuencia del login (Mermaid)
 
 ```mermaid
@@ -138,8 +136,6 @@ sequenceDiagram
   A->>A: Extraer user_id del JWT, validar firma/exp
   A->>C: Respuesta según recurso
 ```
-
-![Flujo de login y emisión de JWT](images/api-flow-login-jwt.png)
 
 | Paso | Quién | Qué hace la API |
 |------|--------|------------------|
