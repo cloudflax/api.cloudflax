@@ -32,6 +32,72 @@ func decodeErrorResponse(t *testing.T, body io.Reader) apierrors.ErrorResponse {
 	return result
 }
 
+func TestGetMe_Success(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	testUser := User{Name: "Me User", Email: "me@example.com"}
+	require.NoError(t, testUser.SetPassword("secret123"))
+	require.NoError(t, database.DB.Create(&testUser).Error)
+
+	app := fiber.New()
+	app.Get("/users/me", func(c fiber.Ctx) error {
+		c.Locals("userID", testUser.ID)
+		return c.Next()
+	}, handler.GetMe)
+
+	req := httptest.NewRequest("GET", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data User `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(t, testUser.ID, result.Data.ID)
+	assert.Equal(t, "Me User", result.Data.Name)
+	assert.Empty(t, result.Data.PasswordHash)
+}
+
+func TestGetMe_Unauthorized(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := fiber.New()
+	app.Get("/users/me", handler.GetMe)
+
+	req := httptest.NewRequest("GET", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+}
+
+func TestGetMe_UserNotFound(t *testing.T) {
+	handler := setupUserHandlerTest(t)
+
+	app := fiber.New()
+	app.Get("/users/me", func(c fiber.Ctx) error {
+		c.Locals("userID", "00000000-0000-0000-0000-000000000000")
+		return c.Next()
+	}, handler.GetMe)
+
+	req := httptest.NewRequest("GET", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
+}
+
 func TestListUser_Empty(t *testing.T) {
 	handler := setupUserHandlerTest(t)
 

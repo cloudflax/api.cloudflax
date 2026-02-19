@@ -43,6 +43,24 @@ func (h *Handler) ListUser(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": users})
 }
 
+// GetMe returns the authenticated user based on the userID stored in locals.
+func (h *Handler) GetMe(c fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
+		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+	}
+
+	user, err := h.service.GetUser(userID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
+		}
+		slog.Error("get me", "user_id", userID, "error", err)
+		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get user")
+	}
+	return c.JSON(fiber.Map{"data": user})
+}
+
 // GetUser gets a user by ID.
 func (h *Handler) GetUser(c fiber.Ctx) error {
 	id := c.Params("id")
