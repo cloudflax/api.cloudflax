@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/errors"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,10 +23,10 @@ func setupUserHandlerTest(t *testing.T) *Handler {
 	return NewHandler(service)
 }
 
-// decodeErrorResponse reads the body and decodes it into an apierrors.ErrorResponse.
-func decodeErrorResponse(t *testing.T, body io.Reader) apierrors.ErrorResponse {
+// decodeErrorResponse reads the body and decodes it into an runtimeError.ErrorResponse.
+func decodeErrorResponse(t *testing.T, body io.Reader) runtimeError.ErrorResponse {
 	t.Helper()
-	var result apierrors.ErrorResponse
+	var result runtimeError.ErrorResponse
 	require.NoError(t, json.NewDecoder(body).Decode(&result))
 	return result
 }
@@ -74,7 +74,7 @@ func TestGetMe_Unauthorized(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeUnauthorized, errResp.Error.Code)
 }
 
 func TestGetMe_UserNotFound(t *testing.T) {
@@ -94,7 +94,7 @@ func TestGetMe_UserNotFound(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeUserNotFound, errResp.Error.Code)
 }
 
 func TestCreateUser_Success(t *testing.T) {
@@ -144,7 +144,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeEmailAlreadyExists, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeEmailAlreadyExists, errResp.Error.Code)
 	assert.Equal(t, fiber.StatusConflict, errResp.Error.Status)
 }
 
@@ -210,7 +210,7 @@ func TestCreateUser_ValidationError_SingleField(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeValidationError, errResp.Error.Code)
 	assert.Equal(t, fiber.StatusUnprocessableEntity, errResp.Error.Status)
 	require.Len(t, errResp.Error.Details, 1)
 	assert.Equal(t, "password", errResp.Error.Details[0].Field)
@@ -235,7 +235,7 @@ func TestCreateUser_ValidationError_MultipleFields(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeValidationError, errResp.Error.Code)
 	assert.Equal(t, fiber.StatusUnprocessableEntity, errResp.Error.Status)
 	assert.GreaterOrEqual(t, len(errResp.Error.Details), 2, "expected at least 2 field errors")
 
@@ -293,7 +293,7 @@ func TestDeleteMe_Unauthorized(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeUnauthorized, errResp.Error.Code)
 }
 
 func TestDeleteMe_UserNotFound(t *testing.T) {
@@ -309,7 +309,7 @@ func TestDeleteMe_UserNotFound(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUserNotFound, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeUserNotFound, errResp.Error.Code)
 }
 
 func setupUpdateMe(t *testing.T, handler *Handler, userID string) *fiber.App {
@@ -337,7 +337,7 @@ func TestUpdateMe_Unauthorized(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeUnauthorized, errResp.Error.Code)
 }
 
 func TestUpdateMe_NoFieldsProvided(t *testing.T) {
@@ -358,7 +358,7 @@ func TestUpdateMe_NoFieldsProvided(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeValidationError, errResp.Error.Code)
 }
 
 func TestUpdateMe_UpdateName(t *testing.T) {
@@ -432,6 +432,6 @@ func TestUpdateMe_ValidationError(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeError.CodeValidationError, errResp.Error.Code)
 	assert.GreaterOrEqual(t, len(errResp.Error.Details), 1)
 }
