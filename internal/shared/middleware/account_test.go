@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -59,9 +59,9 @@ func newAppWithMiddleware(repo AccountRepository, userID string) *fiber.App {
 	return app
 }
 
-func decodeAccountErrorResponse(t *testing.T, resp *httptest.ResponseRecorder) apierrors.ErrorResponse {
+func decodeAccountErrorResponse(t *testing.T, resp *httptest.ResponseRecorder) runtimeerror.ErrorResponse {
 	t.Helper()
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
 	return result
 }
@@ -183,9 +183,9 @@ func TestRequireAccountMember_AccountNotFound_404(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
-	assert.Equal(t, apierrors.CodeAccountNotFound, result.Error.Code)
+	assert.Equal(t, runtimeerror.CodeAccountNotFound, result.Error.Code)
 }
 
 func TestRequireAccountMember_NotMember_Forbidden(t *testing.T) {
@@ -204,9 +204,9 @@ func TestRequireAccountMember_NotMember_Forbidden(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
 
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
-	assert.Equal(t, apierrors.CodeForbidden, result.Error.Code)
+	assert.Equal(t, runtimeerror.CodeForbidden, result.Error.Code)
 }
 
 func TestRequireAccountMember_NoUserID_Unauthorized(t *testing.T) {

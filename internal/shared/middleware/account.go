@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -31,22 +31,22 @@ func RequireAccountMember(repo AccountRepository) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userID, ok := c.Locals("userID").(string)
 		if !ok || userID == "" {
-			return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+			return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
 		}
 
 		acc, err := resolveAccount(c, repo)
 		if err != nil {
 			if errors.Is(err, account.ErrNotFound) {
-				return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeAccountNotFound, "Account not found")
+				return runtimeerror.Respond(c, fiber.StatusNotFound, runtimeerror.CodeAccountNotFound, "Account not found")
 			}
-			return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Account identifier required (X-Account-ID, X-Account-Slug, account_id or account_slug)")
+			return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeInvalidRequestBody, "Account identifier required (X-Account-ID, X-Account-Slug, account_id or account_slug)")
 		}
 
 		if _, err := repo.GetMember(acc.ID, userID); err != nil {
 			if errors.Is(err, account.ErrMemberNotFound) {
-				return apierrors.Respond(c, fiber.StatusForbidden, apierrors.CodeForbidden, "Access denied: not a member of this account")
+				return runtimeerror.Respond(c, fiber.StatusForbidden, runtimeerror.CodeForbidden, "Access denied: not a member of this account")
 			}
-			return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to verify account membership")
+			return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to verify account membership")
 		}
 
 		c.Locals("accountID", acc.ID)

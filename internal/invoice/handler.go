@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	"github.com/cloudflax/api.cloudflax/internal/validator"
 	"github.com/gofiber/fiber/v3"
@@ -25,13 +25,13 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) ListInvoice(c fiber.Ctx) error {
 	rctx, err := requestctx.FromFiber(c)
 	if err != nil {
-		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+		return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
 	}
 
 	invoices, err := h.service.ListInvoice(rctx.AccountID)
 	if err != nil {
 		slog.Error("list invoices", "account_id", rctx.AccountID, "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to list invoices")
+		return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to list invoices")
 	}
 
 	return c.JSON(fiber.Map{"data": invoices})
@@ -42,17 +42,17 @@ func (h *Handler) ListInvoice(c fiber.Ctx) error {
 func (h *Handler) GetInvoice(c fiber.Ctx) error {
 	rctx, err := requestctx.FromFiber(c)
 	if err != nil {
-		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+		return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
 	}
 
 	id := c.Params("id")
 	inv, err := h.service.GetInvoice(id, rctx.AccountID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeInvoiceNotFound, "Invoice not found")
+			return runtimeerror.Respond(c, fiber.StatusNotFound, runtimeerror.CodeInvoiceNotFound, "Invoice not found")
 		}
 		slog.Error("get invoice", "id", id, "account_id", rctx.AccountID, "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get invoice")
+		return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to get invoice")
 	}
 
 	return c.JSON(fiber.Map{"data": inv})
@@ -63,41 +63,41 @@ func (h *Handler) GetInvoice(c fiber.Ctx) error {
 func (h *Handler) CreateInvoice(c fiber.Ctx) error {
 	rctx, err := requestctx.FromFiber(c)
 	if err != nil {
-		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
+		return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
 	}
 
 	var req CreateInvoiceRequest
 	if err := c.Bind().Body(&req); err != nil {
 		slog.Debug("create invoice bind error", "error", err)
-		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeInvalidRequestBody, "Invalid request body")
+		return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeInvalidRequestBody, "Invalid request body")
 	}
 
 	if err := validator.Validate(req); err != nil {
 		slog.Debug("create invoice validation error", "error", err)
 		var ve validator.ValidationErrors
 		if errors.As(err, &ve) {
-			return apierrors.RespondWithDetails(
-				c, fiber.StatusUnprocessableEntity, apierrors.CodeValidationError,
+			return runtimeerror.RespondWithDetails(
+				c, fiber.StatusUnprocessableEntity, runtimeerror.CodeValidationError,
 				"Validation failed", toErrorDetails(ve),
 			)
 		}
-		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, err.Error())
+		return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeValidationError, err.Error())
 	}
 
 	inv, err := h.service.CreateInvoice(rctx.AccountID, req.Number, req.Currency, req.TotalCents)
 	if err != nil {
 		slog.Error("create invoice", "account_id", rctx.AccountID, "error", err)
-		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to create invoice")
+		return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to create invoice")
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": inv})
 }
 
-// toErrorDetails converts validator.ValidationErrors to apierrors.ErrorDetail slice.
-func toErrorDetails(ve validator.ValidationErrors) []apierrors.ErrorDetail {
-	details := make([]apierrors.ErrorDetail, len(ve))
+// toErrorDetails converts validator.ValidationErrors to runtimeerror.ErrorDetail slice.
+func toErrorDetails(ve validator.ValidationErrors) []runtimeerror.ErrorDetail {
+	details := make([]runtimeerror.ErrorDetail, len(ve))
 	for i, fe := range ve {
-		details[i] = apierrors.ErrorDetail{
+		details[i] = runtimeerror.ErrorDetail{
 			Field:   fe.Field,
 			Message: fe.Message,
 		}

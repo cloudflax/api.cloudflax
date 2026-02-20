@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -29,9 +29,9 @@ func setupHandlerTest(t *testing.T) (*Handler, *account.Account) {
 	return NewHandler(service), acc
 }
 
-func decodeErrorResponse(t *testing.T, body io.Reader) apierrors.ErrorResponse {
+func decodeErrorResponse(t *testing.T, body io.Reader) runtimeerror.ErrorResponse {
 	t.Helper()
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(body).Decode(&result))
 	return result
 }
@@ -113,7 +113,7 @@ func TestHandler_GetInvoice_NotFound(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeInvoiceNotFound, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeInvoiceNotFound, errResp.Error.Code)
 }
 
 func TestHandler_CreateInvoice_Success(t *testing.T) {
@@ -158,7 +158,7 @@ func TestHandler_CreateInvoice_ValidationError(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeValidationError, errResp.Error.Code)
 }
 
 func TestHandler_CreateInvoice_Unauthorized(t *testing.T) {

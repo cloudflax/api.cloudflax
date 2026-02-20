@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -37,9 +37,9 @@ func createTestUser(t *testing.T, name, email, password string) *user.User {
 	return u
 }
 
-func decodeErrorResponse(t *testing.T, body io.Reader) apierrors.ErrorResponse {
+func decodeErrorResponse(t *testing.T, body io.Reader) runtimeerror.ErrorResponse {
 	t.Helper()
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(body).Decode(&result))
 	return result
 }
@@ -89,7 +89,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeInvalidCredentials, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeInvalidCredentials, errResp.Error.Code)
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
@@ -108,7 +108,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeInvalidCredentials, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeInvalidCredentials, errResp.Error.Code)
 }
 
 func TestLogin_ValidationError(t *testing.T) {
@@ -127,7 +127,7 @@ func TestLogin_ValidationError(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeValidationError, errResp.Error.Code)
 	assert.NotEmpty(t, errResp.Error.Details)
 }
 
@@ -196,7 +196,7 @@ func TestRefresh_InvalidToken(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeTokenInvalid, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeTokenInvalid, errResp.Error.Code)
 }
 
 func TestRefresh_TokenRotation_OldTokenInvalidAfterRefresh(t *testing.T) {
@@ -331,7 +331,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusConflict, resp2.StatusCode)
 	errResp := decodeErrorResponse(t, resp2.Body)
-	assert.Equal(t, apierrors.CodeEmailAlreadyExists, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeEmailAlreadyExists, errResp.Error.Code)
 }
 
 func TestRegister_ValidationError(t *testing.T) {
@@ -350,7 +350,7 @@ func TestRegister_ValidationError(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeValidationError, errResp.Error.Code)
 }
 
 // --- VerifyEmail ---
@@ -397,7 +397,7 @@ func TestVerifyEmail_InvalidToken(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeInvalidVerificationToken, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeInvalidVerificationToken, errResp.Error.Code)
 }
 
 // --- ResendVerification ---
@@ -446,7 +446,7 @@ func TestResendVerification_AlreadyVerified(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeEmailAlreadyVerified, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeEmailAlreadyVerified, errResp.Error.Code)
 }
 
 func TestResendVerification_UnknownEmail(t *testing.T) {

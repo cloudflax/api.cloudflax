@@ -1,4 +1,4 @@
-package errors
+package runtimeerror
 
 import "github.com/gofiber/fiber/v3"
 

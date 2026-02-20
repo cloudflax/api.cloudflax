@@ -95,7 +95,7 @@ Evitar abreviaciones y nombres cortos que obligan al lector a “traducir” men
 }
 ```
 
-Los códigos de error se definen en `internal/shared/errors/errors.go`. Los helpers `apierrors.Respond` y `apierrors.RespondWithDetails` construyen siempre esta estructura.
+Los códigos de error se definen en `internal/shared/runtimeerror/errors.go`. Los helpers `runtimeerror.Respond` y `runtimeerror.RespondWithDetails` construyen siempre esta estructura.
 
 Para listas paginadas, incluir `meta` con `page`, `limit`, `total`.
 

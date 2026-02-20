@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
@@ -27,9 +27,9 @@ func setupHandlerTest(t *testing.T) (*Handler, *user.Repository) {
 	return NewHandler(service), userRepository
 }
 
-func decodeErrorResponse(t *testing.T, body io.Reader) apierrors.ErrorResponse {
+func decodeErrorResponse(t *testing.T, body io.Reader) runtimeerror.ErrorResponse {
 	t.Helper()
-	var result apierrors.ErrorResponse
+	var result runtimeerror.ErrorResponse
 	require.NoError(t, json.NewDecoder(body).Decode(&result))
 	return result
 }
@@ -120,7 +120,7 @@ func TestCreateAccount_Unauthorized(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeUnauthorized, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeUnauthorized, errResp.Error.Code)
 }
 
 func TestCreateAccount_ValidationError(t *testing.T) {
@@ -142,7 +142,7 @@ func TestCreateAccount_ValidationError(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeValidationError, errResp.Error.Code)
 	assert.NotEmpty(t, errResp.Error.Details)
 }
 
@@ -165,7 +165,7 @@ func TestCreateAccount_InvalidSlugFormat(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeValidationError, errResp.Error.Code)
 }
 
 func TestCreateAccount_EmailNotVerified(t *testing.T) {
@@ -187,7 +187,7 @@ func TestCreateAccount_EmailNotVerified(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeEmailVerificationRequired, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeEmailVerificationRequired, errResp.Error.Code)
 }
 
 func TestCreateAccount_SlugTaken(t *testing.T) {
@@ -215,5 +215,5 @@ func TestCreateAccount_SlugTaken(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	errResp := decodeErrorResponse(t, resp.Body)
-	assert.Equal(t, apierrors.CodeAccountSlugTaken, errResp.Error.Code)
+	assert.Equal(t, runtimeerror.CodeAccountSlugTaken, errResp.Error.Code)
 }
