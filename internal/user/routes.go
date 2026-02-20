@@ -5,9 +5,9 @@ import (
 )
 
 // Routes mounts user routes on the given router.
-func Routes(router fiber.Router, h *Handler, authMiddleware fiber.Handler) {
-	//router.Post("/users", authMiddleware, h.CreateUser)
-	router.Get("/users/me", authMiddleware, h.GetMe)
-	router.Put("/users/me", authMiddleware, h.UpdateMe)
-	router.Delete("/users/me", authMiddleware, h.DeleteMe)
+func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler) {
+	//router.Post("/users", authMiddleware, handler.CreateUser)
+	router.Get("/users/me", authMiddleware, handler.GetMe)
+	router.Put("/users/me", authMiddleware, handler.UpdateMe)
+	router.Delete("/users/me", authMiddleware, handler.DeleteMe)
 }

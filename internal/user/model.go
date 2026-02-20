@@ -25,23 +25,23 @@ type User struct {
 }
 
 // IsEmailVerified returns true if the user has verified their email address.
-func (u *User) IsEmailVerified() bool {
-	return u.EmailVerifiedAt != nil
+func (user *User) IsEmailVerified() bool {
+	return user.EmailVerifiedAt != nil
 }
 
 // SetPassword hashes the plain password and stores it in PasswordHash.
-func (u *User) SetPassword(plain string) error {
+func (user *User) SetPassword(plain string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcryptCost)
 	if err != nil {
 		return err
 	}
-	u.PasswordHash = string(hash)
+	user.PasswordHash = string(hash)
 	return nil
 }
 
 // CheckPassword verifies that the plain password matches the stored hash.
-func (u *User) CheckPassword(plain string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plain)) == nil
+func (user *User) CheckPassword(plain string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(plain)) == nil
 }
 
 // TableName overrides the table name.
@@ -50,9 +50,9 @@ func (User) TableName() string {
 }
 
 // BeforeCreate generates UUID before insert.
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.ID == "" {
-		u.ID = uuid.New().String()
+func (user *User) BeforeCreate(tx *gorm.DB) error {
+	if user.ID == "" {
+		user.ID = uuid.New().String()
 	}
 	return nil
 }
