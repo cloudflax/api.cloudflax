@@ -20,9 +20,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	userRepository := user.NewRepository(database.DB)
 	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret)
 	authHandler := auth.NewHandler(authService)
-
 	requireAuth := middleware.RequireAuth(authService)
-
 	auth.Routes(app, authHandler, requireAuth)
 
 	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
@@ -32,9 +30,8 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	accountRepository := account.NewRepository(database.DB)
 	accountService := account.NewService(accountRepository, userRepository)
 	accountHandler := account.NewHandler(accountService)
-	account.Routes(app, accountHandler, requireAuth)
-
 	requireAccountMember := middleware.RequireAccountMember(accountRepository)
+	account.Routes(app, accountHandler, requireAuth)
 
 	invoiceRepository := invoice.NewRepository(database.DB)
 	invoiceService := invoice.NewService(invoiceRepository)
