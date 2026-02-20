@@ -99,4 +99,3 @@ func TestSecretsManagerProvider_AWSErrorWrapped(t *testing.T) {
 		t.Fatalf("expected one call to GetSecretStringWithContext, got %d", cache.calls)
 	}
 }
-

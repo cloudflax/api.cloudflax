@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudflax/api.cloudflax/internal/secrets"
+	"github.com/cloudflax/api.cloudflax/internal/shared/secrets"
 )
 
 // Config holds the application configuration.
