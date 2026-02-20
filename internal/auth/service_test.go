@@ -12,7 +12,7 @@ import (
 func setupServiceTest(t *testing.T) *Service {
 	t.Helper()
 	require.NoError(t, database.InitForTesting())
-	require.NoError(t, database.RunMigrations(&user.User{}, &RefreshToken{}))
+	require.NoError(t, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
@@ -118,6 +118,75 @@ func TestService_RefreshTokens_InvalidToken(t *testing.T) {
 
 	_, err := service.RefreshTokens("random-invalid-token")
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestService_Register_Success(t *testing.T) {
+	service := setupServiceTest(t)
+
+	u, token, err := service.Register("Alice", "alice@example.com", "password123")
+	require.NoError(t, err)
+	assert.NotEmpty(t, u.ID)
+	assert.Equal(t, "alice@example.com", u.Email)
+	assert.Nil(t, u.EmailVerifiedAt)
+	assert.NotEmpty(t, token)
+
+	var provider UserAuthProvider
+	require.NoError(t, database.DB.Where("user_id = ? AND provider = ?", u.ID, ProviderCredentials).First(&provider).Error)
+	assert.Equal(t, "alice@example.com", provider.ProviderSubjectID)
+}
+
+func TestService_Register_DuplicateEmail(t *testing.T) {
+	service := setupServiceTest(t)
+
+	_, _, err := service.Register("Alice", "dup@example.com", "password123")
+	require.NoError(t, err)
+
+	_, _, err = service.Register("Bob", "dup@example.com", "password456")
+	assert.ErrorIs(t, err, user.ErrDuplicateEmail)
+}
+
+func TestService_VerifyEmail_Success(t *testing.T) {
+	service := setupServiceTest(t)
+
+	_, token, err := service.Register("Carol", "carol@example.com", "password123")
+	require.NoError(t, err)
+
+	require.NoError(t, service.VerifyEmail(token))
+
+	var u user.User
+	require.NoError(t, database.DB.Where("email = ?", "carol@example.com").First(&u).Error)
+	assert.NotNil(t, u.EmailVerifiedAt)
+	assert.Nil(t, u.EmailVerificationToken)
+}
+
+func TestService_VerifyEmail_InvalidToken(t *testing.T) {
+	service := setupServiceTest(t)
+
+	err := service.VerifyEmail("00000000-0000-0000-0000-000000000000")
+	assert.ErrorIs(t, err, ErrInvalidVerificationToken)
+}
+
+func TestService_ResendVerification_Success(t *testing.T) {
+	service := setupServiceTest(t)
+
+	_, oldToken, err := service.Register("Dan", "dan@example.com", "password123")
+	require.NoError(t, err)
+
+	newToken, err := service.ResendVerification("dan@example.com")
+	require.NoError(t, err)
+	assert.NotEmpty(t, newToken)
+	assert.NotEqual(t, oldToken, newToken)
+}
+
+func TestService_ResendVerification_AlreadyVerified(t *testing.T) {
+	service := setupServiceTest(t)
+
+	_, token, err := service.Register("Eve", "eve@example.com", "password123")
+	require.NoError(t, err)
+	require.NoError(t, service.VerifyEmail(token))
+
+	_, err = service.ResendVerification("eve@example.com")
+	assert.ErrorIs(t, err, ErrEmailAlreadyVerified)
 }
 
 func TestService_Logout_RevokesAllTokens(t *testing.T) {

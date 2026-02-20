@@ -14,8 +14,10 @@ const (
 
 // User error codes.
 const (
-	CodeUserNotFound       ErrorCode = "USER_NOT_FOUND"
-	CodeEmailAlreadyExists ErrorCode = "EMAIL_ALREADY_EXISTS"
+	CodeUserNotFound             ErrorCode = "USER_NOT_FOUND"
+	CodeEmailAlreadyExists       ErrorCode = "EMAIL_ALREADY_EXISTS"
+	CodeEmailAlreadyVerified     ErrorCode = "EMAIL_ALREADY_VERIFIED"
+	CodeInvalidVerificationToken ErrorCode = "INVALID_VERIFICATION_TOKEN"
 )
 
 // Auth error codes.

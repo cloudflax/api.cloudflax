@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := database.RunMigrations(&user.User{}, &auth.RefreshToken{}); err != nil {
+	if err := database.RunMigrations(&user.User{}, &auth.UserAuthProvider{}, &auth.RefreshToken{}); err != nil {
 		slog.Error("migrations", "error", err)
 		os.Exit(1)
 	}

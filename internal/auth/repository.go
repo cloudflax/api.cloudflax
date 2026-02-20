@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/cloudflax/api.cloudflax/internal/user"
 	"gorm.io/gorm"
 )
 
@@ -62,4 +64,40 @@ func (repository *Repository) RevokeAllByUserID(userID string) error {
 		return fmt.Errorf("revoke all user tokens: %w", err)
 	}
 	return nil
+}
+
+// CreateAuthProvider persists a new UserAuthProvider record.
+func (repository *Repository) CreateAuthProvider(provider *UserAuthProvider) error {
+	if err := repository.db.Create(provider).Error; err != nil {
+		return fmt.Errorf("create auth provider: %w", err)
+	}
+	return nil
+}
+
+// FindByProviderAndSubject returns the UserAuthProvider matching the given provider type and subject ID.
+func (repository *Repository) FindByProviderAndSubject(provider ProviderType, subjectID string) (*UserAuthProvider, error) {
+	var p UserAuthProvider
+	err := repository.db.
+		Where("provider = ? AND provider_subject_id = ?", provider, subjectID).
+		First(&p).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTokenNotFound
+		}
+		return nil, fmt.Errorf("find auth provider: %w", err)
+	}
+	return &p, nil
+}
+
+// FindByVerificationToken returns the user that owns the given email verification token.
+func (repository *Repository) FindByVerificationToken(token string) (*user.User, error) {
+	var u user.User
+	err := repository.db.Where("email_verification_token = ?", token).First(&u).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidVerificationToken
+		}
+		return nil, fmt.Errorf("find by verification token: %w", err)
+	}
+	return &u, nil
 }

@@ -9,14 +9,16 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
 const (
-	accessTokenDuration  = 15 * time.Minute
-	refreshTokenDuration = 7 * 24 * time.Hour
-	refreshTokenBytes    = 32
+	accessTokenDuration       = 15 * time.Minute
+	refreshTokenDuration      = 7 * 24 * time.Hour
+	refreshTokenBytes         = 32
+	verificationTokenDuration = 24 * time.Hour
 )
 
 // Claims holds the JWT payload for access tokens.
@@ -36,32 +38,119 @@ type TokenPair struct {
 // ErrInvalidCredentials is returned when login credentials are wrong.
 var ErrInvalidCredentials = fmt.Errorf("invalid credentials")
 
-// UserReader is the subset of the user repository the auth service depends on.
-type UserReader interface {
+// ErrInvalidVerificationToken is returned when the email verification token is invalid or expired.
+var ErrInvalidVerificationToken = fmt.Errorf("invalid verification token")
+
+// ErrEmailAlreadyVerified is returned when the email is already verified.
+var ErrEmailAlreadyVerified = fmt.Errorf("email already verified")
+
+// UserRepository is the subset of the user repository the auth service depends on.
+type UserRepository interface {
 	GetUser(id string) (*user.User, error)
 	GetUserByEmail(email string) (*user.User, error)
+	Create(u *user.User) error
+	Update(u *user.User) error
 }
 
 // Service handles authentication business logic.
 type Service struct {
-	repository *Repository
-	userReader UserReader
-	jwtSecret  []byte
+	repository     *Repository
+	userRepository UserRepository
+	jwtSecret      []byte
 }
 
 // NewService creates a new auth service.
-func NewService(repository *Repository, userReader UserReader, jwtSecret string) *Service {
+func NewService(repository *Repository, userRepository UserRepository, jwtSecret string) *Service {
 	return &Service{
-		repository: repository,
-		userReader: userReader,
-		jwtSecret:  []byte(jwtSecret),
+		repository:     repository,
+		userRepository: userRepository,
+		jwtSecret:      []byte(jwtSecret),
 	}
+}
+
+// Register creates a new user with an email/password credential and a pending
+// email verification token. The raw verification token is returned so callers
+// can hand it to the user (e.g. embed it in a verification link).
+func (service *Service) Register(name, email, password string) (*user.User, string, error) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+
+	token := uuid.New().String()
+	expiresAt := time.Now().Add(verificationTokenDuration)
+
+	u := &user.User{
+		Name:                       name,
+		Email:                      normalizedEmail,
+		EmailVerificationToken:     &token,
+		EmailVerificationExpiresAt: &expiresAt,
+	}
+	if err := u.SetPassword(password); err != nil {
+		return nil, "", fmt.Errorf("hash password: %w", err)
+	}
+	if err := service.userRepository.Create(u); err != nil {
+		return nil, "", err
+	}
+
+	provider := &UserAuthProvider{
+		UserID:            u.ID,
+		Provider:          ProviderCredentials,
+		ProviderSubjectID: normalizedEmail,
+	}
+	if err := service.repository.CreateAuthProvider(provider); err != nil {
+		return nil, "", fmt.Errorf("create auth provider: %w", err)
+	}
+
+	return u, token, nil
+}
+
+// VerifyEmail marks the user's email as verified using the token previously issued
+// during registration (or after a resend-verification request).
+func (service *Service) VerifyEmail(token string) error {
+	u, err := service.repository.FindByVerificationToken(token)
+	if err != nil {
+		return ErrInvalidVerificationToken
+	}
+
+	if u.EmailVerificationExpiresAt != nil && time.Now().After(*u.EmailVerificationExpiresAt) {
+		return ErrInvalidVerificationToken
+	}
+
+	now := time.Now()
+	u.EmailVerifiedAt = &now
+	u.EmailVerificationToken = nil
+	u.EmailVerificationExpiresAt = nil
+
+	return service.userRepository.Update(u)
+}
+
+// ResendVerification generates a fresh email verification token for the given email address.
+// In production this would trigger an email send; here the token is returned so the caller
+// can deliver it (e.g. log it or return it in a dev-only response field).
+func (service *Service) ResendVerification(email string) (string, error) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+
+	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return "", user.ErrNotFound
+	}
+	if u.IsEmailVerified() {
+		return "", ErrEmailAlreadyVerified
+	}
+
+	token := uuid.New().String()
+	expiresAt := time.Now().Add(verificationTokenDuration)
+	u.EmailVerificationToken = &token
+	u.EmailVerificationExpiresAt = &expiresAt
+
+	if err := service.userRepository.Update(u); err != nil {
+		return "", fmt.Errorf("update verification token: %w", err)
+	}
+	return token, nil
 }
 
 // Login verifies credentials and issues a token pair on success.
 func (service *Service) Login(email, password string) (*TokenPair, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
-	u, err := service.userReader.GetUserByEmail(normalizedEmail)
+	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}
@@ -87,7 +176,7 @@ func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error
 		return nil, fmt.Errorf("revoke old refresh token: %w", err)
 	}
 
-	u, err := service.userReader.GetUser(stored.UserID)
+	u, err := service.userRepository.GetUser(stored.UserID)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}

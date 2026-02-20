@@ -20,7 +20,7 @@ const testJWTSecret = "test-secret-key-for-unit-tests-only"
 func setupAuthHandlerTest(t *testing.T) (*Handler, *Service) {
 	t.Helper()
 	require.NoError(t, database.InitForTesting())
-	require.NoError(t, database.RunMigrations(&user.User{}, &RefreshToken{}))
+	require.NoError(t, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
@@ -268,4 +268,200 @@ func TestLogout_WithoutAuth(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+// --- Register ---
+
+func TestRegister_Success(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+
+	app := fiber.New()
+	app.Post("/auth/register", handler.Register)
+
+	body := strings.NewReader(`{"name":"Alice","email":"alice@example.com","password":"password123"}`)
+	req := httptest.NewRequest("POST", "/auth/register", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+	var result struct {
+		Data user.User `json:"data"`
+		Meta struct {
+			EmailVerificationRequired bool `json:"email_verification_required"`
+		} `json:"meta"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	assert.NotEmpty(t, result.Data.ID)
+	assert.Equal(t, "Alice", result.Data.Name)
+	assert.Equal(t, "alice@example.com", result.Data.Email)
+	assert.Empty(t, result.Data.PasswordHash)
+	assert.Nil(t, result.Data.EmailVerifiedAt)
+	assert.True(t, result.Meta.EmailVerificationRequired)
+
+	var provider UserAuthProvider
+	dbErr := database.DB.Where("user_id = ? AND provider = ?", result.Data.ID, ProviderCredentials).First(&provider).Error
+	require.NoError(t, dbErr, "UserAuthProvider must be created")
+	assert.Equal(t, "alice@example.com", provider.ProviderSubjectID)
+}
+
+func TestRegister_DuplicateEmail(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+
+	app := fiber.New()
+	app.Post("/auth/register", handler.Register)
+
+	body := strings.NewReader(`{"name":"Alice","email":"dup@example.com","password":"password123"}`)
+	req := httptest.NewRequest("POST", "/auth/register", body)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+	body2 := strings.NewReader(`{"name":"Bob","email":"dup@example.com","password":"password456"}`)
+	req2 := httptest.NewRequest("POST", "/auth/register", body2)
+	req2.Header.Set("Content-Type", "application/json")
+	resp2, err := app.Test(req2, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp2.Body.Close()
+
+	assert.Equal(t, fiber.StatusConflict, resp2.StatusCode)
+	errResp := decodeErrorResponse(t, resp2.Body)
+	assert.Equal(t, apierrors.CodeEmailAlreadyExists, errResp.Error.Code)
+}
+
+func TestRegister_ValidationError(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+
+	app := fiber.New()
+	app.Post("/auth/register", handler.Register)
+
+	body := strings.NewReader(`{"name":"A","email":"not-email","password":"short"}`)
+	req := httptest.NewRequest("POST", "/auth/register", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeValidationError, errResp.Error.Code)
+}
+
+// --- VerifyEmail ---
+
+func TestVerifyEmail_Success(t *testing.T) {
+	handler, authService := setupAuthHandlerTest(t)
+
+	_, token, err := authService.Register("Carol", "carol@example.com", "password123")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	app := fiber.New()
+	app.Post("/auth/verify-email", handler.VerifyEmail)
+
+	body := strings.NewReader(`{"token":"` + token + `"}`)
+	req := httptest.NewRequest("POST", "/auth/verify-email", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var u user.User
+	require.NoError(t, database.DB.Where("email = ?", "carol@example.com").First(&u).Error)
+	assert.NotNil(t, u.EmailVerifiedAt, "email_verified_at must be set")
+	assert.Nil(t, u.EmailVerificationToken, "verification token must be cleared")
+}
+
+func TestVerifyEmail_InvalidToken(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+
+	app := fiber.New()
+	app.Post("/auth/verify-email", handler.VerifyEmail)
+
+	body := strings.NewReader(`{"token":"00000000-0000-0000-0000-000000000000"}`)
+	req := httptest.NewRequest("POST", "/auth/verify-email", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode)
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeInvalidVerificationToken, errResp.Error.Code)
+}
+
+// --- ResendVerification ---
+
+func TestResendVerification_Success(t *testing.T) {
+	handler, authService := setupAuthHandlerTest(t)
+
+	_, _, err := authService.Register("Dan", "dan@example.com", "password123")
+	require.NoError(t, err)
+
+	app := fiber.New()
+	app.Post("/auth/resend-verification", handler.ResendVerification)
+
+	body := strings.NewReader(`{"email":"dan@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/resend-verification", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var u user.User
+	require.NoError(t, database.DB.Where("email = ?", "dan@example.com").First(&u).Error)
+	assert.NotNil(t, u.EmailVerificationToken, "a new token must be set")
+}
+
+func TestResendVerification_AlreadyVerified(t *testing.T) {
+	handler, authService := setupAuthHandlerTest(t)
+
+	_, token, err := authService.Register("Eve", "eve@example.com", "password123")
+	require.NoError(t, err)
+	require.NoError(t, authService.VerifyEmail(token))
+
+	app := fiber.New()
+	app.Post("/auth/resend-verification", handler.ResendVerification)
+
+	body := strings.NewReader(`{"email":"eve@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/resend-verification", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, apierrors.CodeEmailAlreadyVerified, errResp.Error.Code)
+}
+
+func TestResendVerification_UnknownEmail(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+
+	app := fiber.New()
+	app.Post("/auth/resend-verification", handler.ResendVerification)
+
+	body := strings.NewReader(`{"email":"ghost@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/resend-verification", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode, "unknown email must return 200 to prevent enumeration")
 }

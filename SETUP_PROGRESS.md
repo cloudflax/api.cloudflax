@@ -34,17 +34,17 @@ Referencia: **docs/ACCOUNTS_AND_DATA_OWNERSHIP.md**. Las tareas están ordenadas
 
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
-| A1 | **Modelos User y UserAuthProvider** | `internal/user/`: `model.go` con User (id, name, email, password_hash, email_verified_at, timestamps) y UserAuthProvider (user_id, provider, provider_subject_id). Registrar en migraciones. | — |
+| ✅ A1 | **Modelos User y UserAuthProvider** | `internal/user/`: `model.go` con User (id, name, email, password_hash, email_verified_at, timestamps) y UserAuthProvider (user_id, provider, provider_subject_id). Registrar en migraciones. | — |
 | A2 | **Modelos Account y AccountMember** | `internal/account/`: `model.go` con Account (id, name, slug UK) y AccountMember (account_id, user_id, role). UNIQUE(account_id, user_id). Registrar en migraciones. | — |
 
 ### Fase 2 — Registro de usuario
 
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
-| B1 | **Repository users y user_auth_providers** | `internal/user/repository.go`: CreateUser, GetUserByID, GetUserByEmail; CreateAuthProvider, FindByProviderAndSubject. | A1 |
-| B2 | **Service Register** | `internal/user/service.go`: Register(datos + provider) → crear/actualizar User y UserAuthProvider. Sin envío de email aún. | B1 |
-| B3 | **Handler POST /auth/register** | `internal/user/handler.go` + `routes.go`: recibir body, llamar Register, responder 201 (opcional: JWT limitado). | B2 |
-| B4 | **Verificación de email** | Campo `email_verified_at` ya en User. Endpoint para “marcar verificado” (link o código) y/o reenviar verificación. Sin envío real de correo si no hay SMTP. | B3 |
+| ✅ B1 | **Repository users y user_auth_providers** | `internal/user/repository.go`: CreateUser, GetUserByID, GetUserByEmail; CreateAuthProvider, FindByProviderAndSubject. | A1 |
+| ✅ B2 | **Service Register** | `internal/user/service.go`: Register(datos + provider) → crear/actualizar User y UserAuthProvider. Sin envío de email aún. | B1 |
+| ✅ B3 | **Handler POST /auth/register** | `internal/user/handler.go` + `routes.go`: recibir body, llamar Register, responder 201 (opcional: JWT limitado). | B2 |
+| ✅ B4 | **Verificación de email** | Campo `email_verified_at` ya en User. Endpoint para “marcar verificado” (link o código) y/o reenviar verificación. Sin envío real de correo si no hay SMTP. | B3 |
 
 ### Fase 3 — Login y JWT
 
@@ -89,6 +89,7 @@ C4 + D4 → E1 → E2
 
 ## Estado actual
 
-- **Siguiente paso:** 6. CORS (infra) o A1 (cuentas y datos)
-- **Última actualización:** 2026-02-19
+- **Completado:** A1 → B1 → B2 → B3 → B4
+- **Siguiente paso:** C1 (Servicio JWT) o A2 (Modelos Account y AccountMember)
+- **Última actualización:** 2026-02-20
 

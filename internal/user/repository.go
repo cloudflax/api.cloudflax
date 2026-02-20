@@ -18,12 +18,6 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// ErrNotFound is returned when a user is not found.
-var ErrNotFound = fmt.Errorf("user not found")
-
-// ErrDuplicateEmail is returned when creating a user with an email that already exists.
-var ErrDuplicateEmail = fmt.Errorf("email already exists")
-
 // GetUserByEmail returns a user by email address.
 func (repository *Repository) GetUserByEmail(email string) (*User, error) {
 	var user User
