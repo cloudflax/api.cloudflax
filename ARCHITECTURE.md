@@ -42,7 +42,7 @@ internal/
 │   ├── pagination/     # Lógica de paginación
 │   ├── filtering/      # Filtros genéricos
 │   ├── errors/         # Errores y respuestas HTTP
-│   └── validator/      # Validaciones comunes
+│   └── validator/      # Validaciones comunes (struct tags, helpers)
 │
 └── server/
     └── routes.go       # Router principal, monta rutas de cada feature

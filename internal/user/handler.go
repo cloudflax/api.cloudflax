@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
-	"github.com/cloudflax/api.cloudflax/internal/validator"
+	"github.com/cloudflax/api.cloudflax/internal/shared/validator"
 	"github.com/gofiber/fiber/v3"
 )
 
