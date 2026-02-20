@@ -9,8 +9,8 @@ import (
 	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/config"
 	"github.com/cloudflax/api.cloudflax/internal/invoice"
-	"github.com/cloudflax/api.cloudflax/internal/logger"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
+	"github.com/cloudflax/api.cloudflax/internal/shared/logger"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
