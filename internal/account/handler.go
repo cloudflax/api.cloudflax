@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
+	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/cloudflax/api.cloudflax/internal/validator"
@@ -26,50 +26,50 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreateAccount(c fiber.Ctx) error {
 	rctx, err := requestctx.UserOnly(c)
 	if err != nil {
-		return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
+		return runtimeError.Respond(c, fiber.StatusUnauthorized, runtimeError.CodeUnauthorized, "Unauthorized")
 	}
 
 	var req CreateAccountRequest
 	if err := c.Bind().Body(&req); err != nil {
 		slog.Debug("create account bind error", "error", err)
-		return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeInvalidRequestBody, "Invalid request body")
+		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
 	}
 
 	if err := validator.Validate(req); err != nil {
 		slog.Debug("create account validation error", "error", err)
 		var ve validator.ValidationErrors
 		if errors.As(err, &ve) {
-			return runtimeerror.RespondWithDetails(
-				c, fiber.StatusUnprocessableEntity, runtimeerror.CodeValidationError,
+			return runtimeError.RespondWithDetails(
+				c, fiber.StatusUnprocessableEntity, runtimeError.CodeValidationError,
 				"Validation failed", toErrorDetails(ve),
 			)
 		}
-		return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeValidationError, err.Error())
+		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
 	}
 
 	account, _, err := h.service.CreateAccount(req.Name, req.Slug, rctx.UserID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrUserEmailNotVerified):
-			return runtimeerror.Respond(c, fiber.StatusForbidden, runtimeerror.CodeEmailVerificationRequired, "Email verification required")
+			return runtimeError.Respond(c, fiber.StatusForbidden, runtimeError.CodeEmailVerificationRequired, "Email verification required")
 		case errors.Is(err, ErrSlugTaken):
-			return runtimeerror.Respond(c, fiber.StatusConflict, runtimeerror.CodeAccountSlugTaken, "Slug is already taken")
+			return runtimeError.Respond(c, fiber.StatusConflict, runtimeError.CodeAccountSlugTaken, "Slug is already taken")
 		case errors.Is(err, user.ErrNotFound):
-			return runtimeerror.Respond(c, fiber.StatusNotFound, runtimeerror.CodeUserNotFound, "User not found")
+			return runtimeError.Respond(c, fiber.StatusNotFound, runtimeError.CodeUserNotFound, "User not found")
 		default:
 			slog.Error("create account", "user_id", rctx.UserID, "error", err)
-			return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to create account")
+			return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Failed to create account")
 		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": account})
 }
 
-// toErrorDetails converts validator.ValidationErrors to runtimeerror.ErrorDetail slice.
-func toErrorDetails(ve validator.ValidationErrors) []runtimeerror.ErrorDetail {
-	details := make([]runtimeerror.ErrorDetail, len(ve))
+// toErrorDetails converts validator.ValidationErrors to runtimeError.ErrorDetail slice.
+func toErrorDetails(ve validator.ValidationErrors) []runtimeError.ErrorDetail {
+	details := make([]runtimeError.ErrorDetail, len(ve))
 	for i, fe := range ve {
-		details[i] = runtimeerror.ErrorDetail{
+		details[i] = runtimeError.ErrorDetail{
 			Field:   fe.Field,
 			Message: fe.Message,
 		}

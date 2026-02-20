@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
+	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -17,10 +18,7 @@ func Health() fiber.Handler {
 		defer cancel()
 
 		if err := database.Ping(ctx); err != nil {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"status": "unhealthy",
-				"db":     err.Error(),
-			})
+			return runtimeError.Respond(c, fiber.StatusServiceUnavailable, runtimeError.CodeInternalServerError, "Service unavailable")
 		}
 
 		return c.JSON(fiber.Map{

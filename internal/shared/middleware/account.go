@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
-	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
+	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -31,22 +31,22 @@ func RequireAccountMember(repo AccountRepository) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userID, ok := c.Locals("userID").(string)
 		if !ok || userID == "" {
-			return runtimeerror.Respond(c, fiber.StatusUnauthorized, runtimeerror.CodeUnauthorized, "Unauthorized")
+			return runtimeError.Respond(c, fiber.StatusUnauthorized, runtimeError.CodeUnauthorized, "Unauthorized")
 		}
 
 		acc, err := resolveAccount(c, repo)
 		if err != nil {
 			if errors.Is(err, account.ErrNotFound) {
-				return runtimeerror.Respond(c, fiber.StatusNotFound, runtimeerror.CodeAccountNotFound, "Account not found")
+				return runtimeError.Respond(c, fiber.StatusNotFound, runtimeError.CodeAccountNotFound, "Account not found")
 			}
-			return runtimeerror.Respond(c, fiber.StatusBadRequest, runtimeerror.CodeInvalidRequestBody, "Account identifier required (X-Account-ID, X-Account-Slug, account_id or account_slug)")
+			return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Account identifier required (X-Account-ID, X-Account-Slug, account_id or account_slug)")
 		}
 
 		if _, err := repo.GetMember(acc.ID, userID); err != nil {
 			if errors.Is(err, account.ErrMemberNotFound) {
-				return runtimeerror.Respond(c, fiber.StatusForbidden, runtimeerror.CodeForbidden, "Access denied: not a member of this account")
+				return runtimeError.Respond(c, fiber.StatusForbidden, runtimeError.CodeForbidden, "Access denied: not a member of this account")
 			}
-			return runtimeerror.Respond(c, fiber.StatusInternalServerError, runtimeerror.CodeInternalServerError, "Failed to verify account membership")
+			return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Failed to verify account membership")
 		}
 
 		c.Locals("accountID", acc.ID)
