@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
 
-var validate = validator.New()
+var (
+	validate    = validator.New()
+	slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+)
 
 func init() {
 	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
@@ -18,6 +22,10 @@ func init() {
 			return ""
 		}
 		return name
+	})
+
+	_ = validate.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
+		return slugPattern.MatchString(fl.Field().String())
 	})
 }
 
@@ -74,6 +82,8 @@ func fieldMessage(fe validator.FieldError) string {
 			return fmt.Sprintf("Must be at most %s characters", fe.Param())
 		}
 		return fmt.Sprintf("Must be at most %s", fe.Param())
+	case "slug":
+		return "Must contain only lowercase letters, numbers and hyphens (e.g. my-account)"
 	default:
 		return "Is invalid"
 	}

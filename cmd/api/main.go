@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/app"
 	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/config"
@@ -26,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := database.RunMigrations(&user.User{}, &auth.UserAuthProvider{}, &auth.RefreshToken{}); err != nil {
+	if err := database.RunMigrations(&user.User{}, &auth.UserAuthProvider{}, &auth.RefreshToken{}, &account.Account{}, &account.AccountMember{}); err != nil {
 		slog.Error("migrations", "error", err)
 		os.Exit(1)
 	}

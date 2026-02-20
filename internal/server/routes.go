@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/config"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
@@ -26,4 +27,9 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
 	userHandler := user.NewHandler(userService)
 	user.Routes(app, userHandler, requireAuth)
+
+	accountRepository := account.NewRepository(database.DB)
+	accountService := account.NewService(accountRepository, userRepository)
+	accountHandler := account.NewHandler(accountService)
+	account.Routes(app, accountHandler, requireAuth)
 }

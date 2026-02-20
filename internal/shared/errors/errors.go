@@ -20,6 +20,13 @@ const (
 	CodeInvalidVerificationToken ErrorCode = "INVALID_VERIFICATION_TOKEN"
 )
 
+// Account error codes.
+const (
+	CodeAccountNotFound           ErrorCode = "ACCOUNT_NOT_FOUND"
+	CodeAccountSlugTaken          ErrorCode = "ACCOUNT_SLUG_TAKEN"
+	CodeEmailVerificationRequired ErrorCode = "EMAIL_VERIFICATION_REQUIRED"
+)
+
 // Auth error codes.
 const (
 	CodeInvalidCredentials ErrorCode = "INVALID_CREDENTIALS"

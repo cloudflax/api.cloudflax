@@ -35,7 +35,7 @@ Referencia: **docs/ACCOUNTS_AND_DATA_OWNERSHIP.md**. Las tareas están ordenadas
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
 | ✅ A1 | **Modelos User y UserAuthProvider** | `internal/user/`: `model.go` con User (id, name, email, password_hash, email_verified_at, timestamps) y UserAuthProvider (user_id, provider, provider_subject_id). Registrar en migraciones. | — |
-| A2 | **Modelos Account y AccountMember** | `internal/account/`: `model.go` con Account (id, name, slug UK) y AccountMember (account_id, user_id, role). UNIQUE(account_id, user_id). Registrar en migraciones. | — |
+| ✅ A2 | **Modelos Account y AccountMember** | `internal/account/`: `model.go` con Account (id, name, slug UK) y AccountMember (account_id, user_id, role). UNIQUE(account_id, user_id). Registrar en migraciones. | — |
 
 ### Fase 2 — Registro de usuario
 
@@ -50,18 +50,18 @@ Referencia: **docs/ACCOUNTS_AND_DATA_OWNERSHIP.md**. Las tareas están ordenadas
 
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
-| C1 | **Servicio JWT** | `internal/auth/` o `pkg/jwt`: firmar token (user_id, email, exp); validar y extraer claims. Config (secret, expiración). | — |
-| C2 | **Service Login** | Resolver User por user_auth_providers (provider + provider_subject_id); validar password_hash; opcional: exigir email_verified_at. Devolver datos para JWT. | B1, C1 |
-| C3 | **Handler POST /auth/login** | Body email+password; llamar Login; respuesta 200 con `access_token`, `token_type`, `expires_in`. 401 si credenciales inválidas. | C2 |
-| C4 | **Middleware de autenticación** | Extraer Bearer JWT, validar firma/exp, poner user_id (y email) en contexto Fiber. Responder 401 si no hay token o inválido. | C1 |
+| ✅ C1 | **Servicio JWT** | `internal/auth/service.go`: firmar token (user_id, email, exp); validar y extraer claims (`ValidateAccessToken`). Config (secret, expiración). | — |
+|| ✅ C2 | **Service Login** | `internal/auth/service.go`: `Login()` resuelve User por email, valida password_hash, devuelve `TokenPair`. | B1, C1 |
+|| ✅ C3 | **Handler POST /auth/login** | `internal/auth/handler.go`: body email+password; respuesta 200 con `access_token`, `refresh_token`, `expires_at`. 401 si credenciales inválidas. | C2 |
+|| ✅ C4 | **Middleware de autenticación** | `internal/shared/middleware/auth.go`: `RequireAuth()` extrae Bearer JWT, valida firma/exp, inyecta userID y email en Fiber locals. 401 si inválido. | C1 |
 
 ### Fase 4 — Cuentas (Account) y membresía
 
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
-| D1 | **Repository accounts y account_members** | `internal/account/repository.go`: CreateAccount, GetByID, GetBySlug; CreateMember, GetMember(account_id, user_id), ListMembers. | A2 |
-| D2 | **Service CreateAccount** | Crear Account (name, slug único) + AccountMember (user_id del JWT, rol `owner`). Comprobar que User existe y (según política) email verificado. | D1 |
-| D3 | **Handler POST /accounts** | Ruta protegida con middleware auth. Body: name (y opcional slug). Crear cuenta y miembro; 201. | C4, D2 |
+| ✅ D1 | **Repository accounts y account_members** | `internal/account/repository.go`: CreateAccount, GetByID, GetBySlug; CreateMember, GetMember(account_id, user_id), ListMembers. | A2 |
+| ✅ D2 | **Service CreateAccount** | Crear Account (name, slug único) + AccountMember (user_id del JWT, rol `owner`). Comprobar que User existe y (según política) email verificado. | D1 |
+| ✅ D3 | **Handler POST /accounts** | Ruta protegida con middleware auth. Body: name (y opcional slug). Crear cuenta y miembro; 201. | C4, D2 |
 | D4 | **Contexto de cuenta (middleware/helper)** | Leer `account_id` o `slug` (header o query); validar membresía (AccountMember); inyectar account_id en contexto. Responder 403 si no miembro. | C4, D1 |
 
 ### Fase 5 — Contexto de petición y filtrado por Account
@@ -89,7 +89,7 @@ C4 + D4 → E1 → E2
 
 ## Estado actual
 
-- **Completado:** A1 → B1 → B2 → B3 → B4
-- **Siguiente paso:** C1 (Servicio JWT) o A2 (Modelos Account y AccountMember)
+- **Completado:** A1 → B1 → B2 → B3 → B4 → C1 → C2 → C3 → C4 → A2 → D1 → D2 → D3
+- **Siguiente paso:** D4 (Contexto de cuenta — middleware/helper)
 - **Última actualización:** 2026-02-20
 
