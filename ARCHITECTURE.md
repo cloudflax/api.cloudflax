@@ -20,6 +20,11 @@ Cada feature (user, product, order, etc.) vive en su propia carpeta con todos su
 
 ```
 internal/
+├── bootstrap/          # Arranque y configuración de la aplicación
+│   ├── app/            # Creación del Fiber app, Run()
+│   ├── config/         # Carga de configuración (env, secrets)
+│   └── server/         # Router principal, Mount(), handlers raíz (/health, /)
+│
 ├── user/
 │   ├── handler.go      # HTTP, Fiber, request/response
 │   ├── service.go      # Lógica de negocio
@@ -36,16 +41,13 @@ internal/
 │   ├── model.go
 │   └── routes.go
 │
-├── shared/
-│   ├── database/       # Conexión, migraciones
-│   ├── jsonapi/        # Formato JSON API (si aplica)
-│   ├── pagination/     # Lógica de paginación
-│   ├── filtering/      # Filtros genéricos
-│   ├── errors/         # Errores y respuestas HTTP
-│   └── validator/      # Validaciones comunes (struct tags, helpers)
-│
-└── server/
-    └── routes.go       # Router principal, monta rutas de cada feature
+└── shared/
+    ├── database/       # Conexión, migraciones
+    ├── jsonapi/        # Formato JSON API (si aplica)
+    ├── pagination/     # Lógica de paginación
+    ├── filtering/      # Filtros genéricos
+    ├── errors/         # Errores y respuestas HTTP
+    └── validator/      # Validaciones comunes (struct tags, helpers)
 ```
 
 ---
@@ -133,7 +135,7 @@ Orden de ejecución (de fuera hacia dentro):
 
 ## Rutas
 
-- **server/routes.go:** Monta las rutas de cada feature (`user.Routes()`, `product.Routes()`, etc.)
+- **bootstrap/server/routes.go:** Monta las rutas de cada feature (`user.Routes()`, `product.Routes()`, etc.)
 - **Públicas:** `/`, `/health`, `/auth/login`
 - **Protegidas:** `/users`, `/users/:id`, `/users/me`
 - **Prefijo (futuro):** `/api/v1/` para versionado
@@ -151,4 +153,4 @@ Orden de ejecución (de fuera hacia dentro):
 
 ## Migración
 
-La estructura ha sido migrada a feature-driven. El módulo `user` usa la nueva estructura. `shared/database` y `shared/middleware` centralizan código común.
+La estructura ha sido migrada a feature-driven. El módulo `user` usa la nueva estructura. La capa de arranque (app, config, server) vive en `internal/bootstrap/`. `shared/database` y `shared/middleware` centralizan código común.

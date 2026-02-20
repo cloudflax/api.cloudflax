@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
-	"github.com/cloudflax/api.cloudflax/internal/app"
 	"github.com/cloudflax/api.cloudflax/internal/auth"
-	"github.com/cloudflax/api.cloudflax/internal/config"
+	"github.com/cloudflax/api.cloudflax/internal/bootstrap/app"
+	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
 	"github.com/cloudflax/api.cloudflax/internal/invoice"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	"github.com/cloudflax/api.cloudflax/internal/shared/logger"

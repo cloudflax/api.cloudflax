@@ -321,7 +321,7 @@ export async function POST() {
 
 ## CORS
 
-El backend debe tener CORS configurado para aceptar requests desde el origen del frontend. Configurar en `internal/app/app.go` con el middleware de Fiber:
+El backend debe tener CORS configurado para aceptar requests desde el origen del frontend. Configurar en `internal/bootstrap/app/app.go` con el middleware de Fiber:
 
 ```go
 import "github.com/gofiber/fiber/v3/middleware/cors"

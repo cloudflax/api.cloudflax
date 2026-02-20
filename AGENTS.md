@@ -56,7 +56,7 @@ make lint       # Linter (golangci-lint)
 1. **Crear carpeta** — `internal/{recurso}/` (singular, lowercase).
 2. **Archivos mínimos** — `model.go`, `repository.go`, `service.go`, `handler.go`, `routes.go`.
 3. **Nombres CRUD** — `List{Resource}`, `Get{Resource}`, `Create{Resource}`, etc. (ver CONVENTIONS.md).
-4. **Registrar rutas** — En `internal/server/routes.go` montar `{recurso}.Routes()`.
+4. **Registrar rutas** — En `internal/bootstrap/server/routes.go` montar `{recurso}.Routes()`.
 5. **Tests** — Añadir tests para handler, service y repository.
 6. **Migraciones** — Si hay modelos nuevos, registrarlos en `database.RunMigrations()` en `cmd/api/main.go`.
 

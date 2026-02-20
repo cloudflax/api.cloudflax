@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/cloudflax/api.cloudflax/internal/config"
-	"github.com/cloudflax/api.cloudflax/internal/server"
+	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
+	"github.com/cloudflax/api.cloudflax/internal/bootstrap/server"
 	"github.com/cloudflax/api.cloudflax/internal/shared/middleware"
 	"github.com/gofiber/fiber/v3"
 )

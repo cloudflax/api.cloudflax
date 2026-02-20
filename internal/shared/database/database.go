@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cloudflax/api.cloudflax/internal/config"
+	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
