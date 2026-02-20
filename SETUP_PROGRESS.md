@@ -62,7 +62,7 @@ Referencia: **docs/ACCOUNTS_AND_DATA_OWNERSHIP.md**. Las tareas están ordenadas
 | ✅ D1 | **Repository accounts y account_members** | `internal/account/repository.go`: CreateAccount, GetByID, GetBySlug; CreateMember, GetMember(account_id, user_id), ListMembers. | A2 |
 | ✅ D2 | **Service CreateAccount** | Crear Account (name, slug único) + AccountMember (user_id del JWT, rol `owner`). Comprobar que User existe y (según política) email verificado. | D1 |
 | ✅ D3 | **Handler POST /accounts** | Ruta protegida con middleware auth. Body: name (y opcional slug). Crear cuenta y miembro; 201. | C4, D2 |
-| D4 | **Contexto de cuenta (middleware/helper)** | Leer `account_id` o `slug` (header o query); validar membresía (AccountMember); inyectar account_id en contexto. Responder 403 si no miembro. | C4, D1 |
+| ✅ D4 | **Contexto de cuenta (middleware/helper)** | Leer `account_id` o `slug` (header o query); validar membresía (AccountMember); inyectar account_id en contexto. Responder 403 si no miembro. | C4, D1 |
 
 ### Fase 5 — Contexto de petición y filtrado por Account
 
@@ -89,7 +89,7 @@ C4 + D4 → E1 → E2
 
 ## Estado actual
 
-- **Completado:** A1 → B1 → B2 → B3 → B4 → C1 → C2 → C3 → C4 → A2 → D1 → D2 → D3
-- **Siguiente paso:** D4 (Contexto de cuenta — middleware/helper)
+- **Completado:** A1 → B1 → B2 → B3 → B4 → C1 → C2 → C3 → C4 → A2 → D1 → D2 → D3 → D4
+- **Siguiente paso:** E1 (Tipo RequestContext)
 - **Última actualización:** 2026-02-20
 

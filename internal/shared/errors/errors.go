@@ -25,6 +25,7 @@ const (
 	CodeAccountNotFound           ErrorCode = "ACCOUNT_NOT_FOUND"
 	CodeAccountSlugTaken          ErrorCode = "ACCOUNT_SLUG_TAKEN"
 	CodeEmailVerificationRequired ErrorCode = "EMAIL_VERIFICATION_REQUIRED"
+	CodeForbidden                 ErrorCode = "FORBIDDEN"
 )
 
 // Auth error codes.
