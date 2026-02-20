@@ -20,6 +20,11 @@ const (
 	CodeInvalidVerificationToken ErrorCode = "INVALID_VERIFICATION_TOKEN"
 )
 
+// Invoice error codes.
+const (
+	CodeInvoiceNotFound ErrorCode = "INVOICE_NOT_FOUND"
+)
+
 // Account error codes.
 const (
 	CodeAccountNotFound           ErrorCode = "ACCOUNT_NOT_FOUND"

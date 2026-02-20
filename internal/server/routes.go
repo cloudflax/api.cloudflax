@@ -4,6 +4,7 @@ import (
 	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/config"
+	"github.com/cloudflax/api.cloudflax/internal/invoice"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	"github.com/cloudflax/api.cloudflax/internal/shared/middleware"
 	"github.com/cloudflax/api.cloudflax/internal/user"
@@ -32,4 +33,11 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	accountService := account.NewService(accountRepository, userRepository)
 	accountHandler := account.NewHandler(accountService)
 	account.Routes(app, accountHandler, requireAuth)
+
+	requireAccountMember := middleware.RequireAccountMember(accountRepository)
+
+	invoiceRepository := invoice.NewRepository(database.DB)
+	invoiceService := invoice.NewService(invoiceRepository)
+	invoiceHandler := invoice.NewHandler(invoiceService)
+	invoice.Routes(app, invoiceHandler, requireAuth, requireAccountMember)
 }

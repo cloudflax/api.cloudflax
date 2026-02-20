@@ -68,8 +68,8 @@ Referencia: **docs/ACCOUNTS_AND_DATA_OWNERSHIP.md**. Las tareas están ordenadas
 
 | # | Tarea | Alcance | Depende de |
 |---|--------|---------|-------------|
-| E1 | **Tipo RequestContext** | Struct (UserID, AccountID, etc.) y funciones para obtener desde Fiber context. Usar en handlers en lugar de leer JWT/header a mano. | C4, D4 |
-| E2 | **Filtrado por Account en un recurso** | Aplicar filtro por `account_id` (del contexto) en un recurso existente (p. ej. invoices): list/get/create. Patrón para extender al resto. | E1, recurso existente |
+| ✅ E1 | **Tipo RequestContext** | Struct (UserID, AccountID, etc.) y funciones para obtener desde Fiber context. Usar en handlers en lugar de leer JWT/header a mano. | C4, D4 |
+| ✅ E2 | **Filtrado por Account en un recurso** | Aplicar filtro por `account_id` (del contexto) en un recurso existente (p. ej. invoices): list/get/create. Patrón para extender al resto. | E1, recurso existente |
 
 ### Resumen de dependencias (orden sugerido)
 
@@ -89,7 +89,7 @@ C4 + D4 → E1 → E2
 
 ## Estado actual
 
-- **Completado:** A1 → B1 → B2 → B3 → B4 → C1 → C2 → C3 → C4 → A2 → D1 → D2 → D3 → D4
-- **Siguiente paso:** E1 (Tipo RequestContext)
+- **Completado:** A1 → B1 → B2 → B3 → B4 → C1 → C2 → C3 → C4 → A2 → D1 → D2 → D3 → D4 → E1 → E2
+- **Siguiente paso:** Corto plazo — CORS (tarea 6) u otras tareas del backlog
 - **Última actualización:** 2026-02-20
 

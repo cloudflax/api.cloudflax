@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/cloudflax/api.cloudflax/internal/validator"
 	"github.com/gofiber/fiber/v3"
@@ -23,8 +24,8 @@ func NewHandler(service *Service) *Handler {
 // CreateAccount handles POST /accounts.
 // Creates an account owned by the authenticated user. Requires a verified email.
 func (h *Handler) CreateAccount(c fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(string)
-	if !ok || userID == "" {
+	rctx, err := requestctx.UserOnly(c)
+	if err != nil {
 		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
 	}
 
@@ -46,7 +47,7 @@ func (h *Handler) CreateAccount(c fiber.Ctx) error {
 		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, err.Error())
 	}
 
-	account, _, err := h.service.CreateAccount(req.Name, req.Slug, userID)
+	account, _, err := h.service.CreateAccount(req.Name, req.Slug, rctx.UserID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrUserEmailNotVerified):
@@ -56,7 +57,7 @@ func (h *Handler) CreateAccount(c fiber.Ctx) error {
 		case errors.Is(err, user.ErrNotFound):
 			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		default:
-			slog.Error("create account", "user_id", userID, "error", err)
+			slog.Error("create account", "user_id", rctx.UserID, "error", err)
 			return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to create account")
 		}
 	}

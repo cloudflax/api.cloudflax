@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	apierrors "github.com/cloudflax/api.cloudflax/internal/shared/errors"
+	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	"github.com/cloudflax/api.cloudflax/internal/validator"
 	"github.com/gofiber/fiber/v3"
 )
@@ -21,17 +22,17 @@ func NewHandler(service *Service) *Handler {
 
 // GetMe returns the authenticated user based on the userID stored in locals.
 func (h *Handler) GetMe(c fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(string)
-	if !ok || userID == "" {
+	rctx, err := requestctx.UserOnly(c)
+	if err != nil {
 		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
 	}
 
-	user, err := h.service.GetUser(userID)
+	user, err := h.service.GetUser(rctx.UserID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
-		slog.Error("get me", "user_id", userID, "error", err)
+		slog.Error("get me", "user_id", rctx.UserID, "error", err)
 		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to get user")
 	}
 	return c.JSON(fiber.Map{"data": user})
@@ -39,8 +40,8 @@ func (h *Handler) GetMe(c fiber.Ctx) error {
 
 // UpdateMe updates the authenticated user's own profile.
 func (h *Handler) UpdateMe(c fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(string)
-	if !ok || userID == "" {
+	rctx, err := requestctx.UserOnly(c)
+	if err != nil {
 		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
 	}
 
@@ -64,12 +65,12 @@ func (h *Handler) UpdateMe(c fiber.Ctx) error {
 		return apierrors.Respond(c, fiber.StatusBadRequest, apierrors.CodeValidationError, err.Error())
 	}
 
-	user, err := h.service.UpdateUser(userID, req.Name, req.Password)
+	user, err := h.service.UpdateUser(rctx.UserID, req.Name, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
-		slog.Error("update me", "user_id", userID, "error", err)
+		slog.Error("update me", "user_id", rctx.UserID, "error", err)
 		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to update user")
 	}
 	return c.JSON(fiber.Map{"data": user})
@@ -108,16 +109,16 @@ func (h *Handler) CreateUser(c fiber.Ctx) error {
 
 // DeleteMe deletes the authenticated user based on the userID stored in locals.
 func (h *Handler) DeleteMe(c fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(string)
-	if !ok || userID == "" {
+	rctx, err := requestctx.UserOnly(c)
+	if err != nil {
 		return apierrors.Respond(c, fiber.StatusUnauthorized, apierrors.CodeUnauthorized, "Unauthorized")
 	}
 
-	if err := h.service.DeleteUser(userID); err != nil {
+	if err := h.service.DeleteUser(rctx.UserID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return apierrors.Respond(c, fiber.StatusNotFound, apierrors.CodeUserNotFound, "User not found")
 		}
-		slog.Error("delete me", "user_id", userID, "error", err)
+		slog.Error("delete me", "user_id", rctx.UserID, "error", err)
 		return apierrors.Respond(c, fiber.StatusInternalServerError, apierrors.CodeInternalServerError, "Failed to delete user")
 	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
