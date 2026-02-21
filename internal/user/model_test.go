@@ -7,19 +7,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUser_SetPassword(t *testing.T) {
-	u := &User{}
-	err := u.SetPassword("mypassword123")
-	require.NoError(t, err)
-	assert.NotEmpty(t, u.PasswordHash)
-	assert.NotEqual(t, "mypassword123", u.PasswordHash)
+func TestUserSetPassword(test *testing.T) {
+	user := &User{}
+	err := user.SetPassword("mypassword123")
+	require.NoError(test, err)
+	assert.NotEmpty(test, user.PasswordHash)
+	assert.NotEqual(test, "mypassword123", user.PasswordHash)
 }
 
-func TestUser_CheckPassword(t *testing.T) {
-	u := &User{}
-	require.NoError(t, u.SetPassword("mypassword123"))
+func TestUserCheckPassword(test *testing.T) {
+	user := &User{}
+	require.NoError(test, user.SetPassword("mypassword123"))
 
-	assert.True(t, u.CheckPassword("mypassword123"))
-	assert.False(t, u.CheckPassword("wrongpassword"))
-	assert.False(t, u.CheckPassword(""))
+	assert.True(test, user.CheckPassword("mypassword123"))
+	assert.False(test, user.CheckPassword("wrongpassword"))
+	assert.False(test, user.CheckPassword(""))
 }
