@@ -12,12 +12,15 @@ services:
       - APP_ENV=localstack
       - PORT=3000
       - LOG_LEVEL=info
+      - APP_URL=http://localhost:3000
+      - DB_SSL_MODE=disable
       - AWS_ENDPOINT_URL=http://host.docker.internal:4566
       - AWS_REGION=us-east-1
       - AWS_SECRET_NAME=tf-localstack-db-secret
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - JWT_SECRET=68ec8aa701a5e3f2029afc4ff2dfc4ba2e433b58166c9b4c73183752afdedb7b
+      - SES_FROM_ADDRESS=jose.guerrero@cloudflax.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

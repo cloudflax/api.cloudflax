@@ -1,13 +1,21 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func hashTokenForTest(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
 
 func setupServiceTest(t *testing.T) *Service {
 	t.Helper()
@@ -16,7 +24,7 @@ func setupServiceTest(t *testing.T) *Service {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	return NewService(authRepository, userRepository, testJWTSecret)
+	return NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{})
 }
 
 func seedUser(t *testing.T, name, email, password string) *user.User {
@@ -27,9 +35,19 @@ func seedUser(t *testing.T, name, email, password string) *user.User {
 	return u
 }
 
+// seedVerifiedUser creates a user with email_verified_at set so Login and Refresh succeed.
+func seedVerifiedUser(t *testing.T, name, email, password string) *user.User {
+	t.Helper()
+	now := time.Now()
+	u := &user.User{Name: name, Email: email, EmailVerifiedAt: &now}
+	require.NoError(t, u.SetPassword(password))
+	require.NoError(t, database.DB.Create(u).Error)
+	return u
+}
+
 func TestService_Login_Success(t *testing.T) {
 	service := setupServiceTest(t)
-	seedUser(t, "Alice", "alice@example.com", "password123")
+	seedVerifiedUser(t, "Alice", "alice@example.com", "password123")
 
 	pair, err := service.Login("alice@example.com", "password123")
 	require.NoError(t, err)
@@ -53,9 +71,17 @@ func TestService_Login_UnknownEmail(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
+func TestService_Login_EmailNotVerified(t *testing.T) {
+	service := setupServiceTest(t)
+	seedUser(t, "Unverified", "unverified@example.com", "password123")
+
+	_, err := service.Login("unverified@example.com", "password123")
+	assert.ErrorIs(t, err, ErrEmailNotVerified)
+}
+
 func TestService_ValidateAccessToken_Valid(t *testing.T) {
 	service := setupServiceTest(t)
-	seedUser(t, "Carol", "carol@example.com", "password123")
+	seedVerifiedUser(t, "Carol", "carol@example.com", "password123")
 
 	pair, err := service.Login("carol@example.com", "password123")
 	require.NoError(t, err)
@@ -75,19 +101,19 @@ func TestService_ValidateAccessToken_Invalid(t *testing.T) {
 
 func TestService_ValidateAccessToken_WrongSecret(t *testing.T) {
 	service := setupServiceTest(t)
-	seedUser(t, "Dave", "dave@example.com", "password123")
+	seedVerifiedUser(t, "Dave", "dave@example.com", "password123")
 
 	pair, err := service.Login("dave@example.com", "password123")
 	require.NoError(t, err)
 
-	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret")
+	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret", &noopEmailSender{})
 	_, _, err = otherService.ValidateAccessToken(pair.AccessToken)
 	assert.Error(t, err)
 }
 
 func TestService_RefreshTokens_Success(t *testing.T) {
 	service := setupServiceTest(t)
-	seedUser(t, "Eve", "eve@example.com", "password123")
+	seedVerifiedUser(t, "Eve", "eve@example.com", "password123")
 
 	pair, err := service.Login("eve@example.com", "password123")
 	require.NoError(t, err)
@@ -101,7 +127,7 @@ func TestService_RefreshTokens_Success(t *testing.T) {
 
 func TestService_RefreshTokens_Rotation(t *testing.T) {
 	service := setupServiceTest(t)
-	seedUser(t, "Frank", "frank@example.com", "password123")
+	seedVerifiedUser(t, "Frank", "frank@example.com", "password123")
 
 	pair, err := service.Login("frank@example.com", "password123")
 	require.NoError(t, err)
@@ -118,6 +144,24 @@ func TestService_RefreshTokens_InvalidToken(t *testing.T) {
 
 	_, err := service.RefreshTokens("random-invalid-token")
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestService_RefreshTokens_EmailNotVerified(t *testing.T) {
+	service := setupServiceTest(t)
+	u := seedUser(t, "Unverified", "unverified@example.com", "password123")
+
+	// Manually create a refresh token for the unverified user (e.g. from before we required verification).
+	rawToken := "test-refresh-token-for-unverified-user"
+	hash := hashTokenForTest(rawToken)
+	expiresAt := time.Now().Add(24 * time.Hour)
+	require.NoError(t, service.repository.Create(&RefreshToken{
+		UserID:    u.ID,
+		TokenHash: hash,
+		ExpiresAt: expiresAt,
+	}))
+
+	_, err := service.RefreshTokens(rawToken)
+	assert.ErrorIs(t, err, ErrEmailNotVerified)
 }
 
 func TestService_Register_Success(t *testing.T) {
@@ -191,7 +235,7 @@ func TestService_ResendVerification_AlreadyVerified(t *testing.T) {
 
 func TestService_Logout_RevokesAllTokens(t *testing.T) {
 	service := setupServiceTest(t)
-	u := seedUser(t, "Grace", "grace@example.com", "password123")
+	u := seedVerifiedUser(t, "Grace", "grace@example.com", "password123")
 
 	pair1, err := service.Login("grace@example.com", "password123")
 	require.NoError(t, err)

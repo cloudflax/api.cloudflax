@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
-	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/cloudflax/api.cloudflax/internal/shared/validator"
+	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -17,9 +17,9 @@ type RegisterRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=72"`
 }
 
-// VerifyEmailRequest is the request body for POST /auth/verify-email.
+// VerifyEmailRequest holds the token from GET /auth/verify-email?token=...
 type VerifyEmailRequest struct {
-	Token string `json:"token" validate:"required"`
+	Token string `query:"token" validate:"required"`
 }
 
 // ResendVerificationRequest is the request body for POST /auth/resend-verification.
@@ -73,6 +73,9 @@ func (h *Handler) Login(c fiber.Ctx) error {
 		if errors.Is(err, ErrInvalidCredentials) {
 			return runtimeError.Respond(c, fiber.StatusUnauthorized, runtimeError.CodeInvalidCredentials, "Invalid email or password")
 		}
+		if errors.Is(err, ErrEmailNotVerified) {
+			return runtimeError.Respond(c, fiber.StatusForbidden, runtimeError.CodeEmailVerificationRequired, "Email must be verified before you can log in")
+		}
 		slog.Error("login", "error", err)
 		return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Login failed")
 	}
@@ -97,6 +100,9 @@ func (h *Handler) Refresh(c fiber.Ctx) error {
 		if errors.Is(err, ErrInvalidCredentials) {
 			return runtimeError.Respond(c, fiber.StatusUnauthorized, runtimeError.CodeTokenInvalid, "Invalid or expired refresh token")
 		}
+		if errors.Is(err, ErrEmailNotVerified) {
+			return runtimeError.Respond(c, fiber.StatusForbidden, runtimeError.CodeEmailVerificationRequired, "Email must be verified before you can use this session")
+		}
 		slog.Error("refresh tokens", "error", err)
 		return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Token refresh failed")
 	}
@@ -120,8 +126,8 @@ func (h *Handler) Logout(c fiber.Ctx) error {
 }
 
 // Register creates a new user account with email/password credentials.
-// Responds 201 with the created user. Email verification is required before
-// full access; a verification token is generated (and in production would be emailed).
+// Responds 201 with the created user. A verification email is sent to the
+// registered address; the account is not usable until the email is verified.
 func (h *Handler) Register(c fiber.Ctx) error {
 	var req RegisterRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -157,11 +163,12 @@ func (h *Handler) Register(c fiber.Ctx) error {
 }
 
 // VerifyEmail marks the user's email as verified using the token from the verification link.
+// The token is read from the query string (?token=...) so the link in the email works when clicked (GET).
 func (h *Handler) VerifyEmail(c fiber.Ctx) error {
 	var req VerifyEmailRequest
-	if err := c.Bind().Body(&req); err != nil {
+	if err := c.Bind().Query(&req); err != nil {
 		slog.Debug("verify email bind error", "error", err)
-		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
+		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request")
 	}
 	if err := validator.Validate(req); err != nil {
 		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeValidationError, "token is required")
@@ -178,8 +185,8 @@ func (h *Handler) VerifyEmail(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Email verified successfully"})
 }
 
-// ResendVerification generates a new verification token for the given email.
-// In production this would send an email; here the token is only logged.
+// ResendVerification generates a new verification token for the given email and
+// sends a new verification email via SES.
 func (h *Handler) ResendVerification(c fiber.Ctx) error {
 	var req ResendVerificationRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -190,8 +197,7 @@ func (h *Handler) ResendVerification(c fiber.Ctx) error {
 		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeValidationError, "email is required")
 	}
 
-	token, err := h.service.ResendVerification(req.Email)
-	if err != nil {
+	if _, err := h.service.ResendVerification(req.Email); err != nil {
 		if errors.Is(err, ErrEmailAlreadyVerified) {
 			return runtimeError.Respond(c, fiber.StatusConflict, runtimeError.CodeEmailAlreadyVerified, "Email is already verified")
 		}
@@ -202,7 +208,7 @@ func (h *Handler) ResendVerification(c fiber.Ctx) error {
 		return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not resend verification")
 	}
 
-	slog.Info("email verification token generated", "email", req.Email, "token", token)
+	slog.Info("verification email sent", "email", req.Email)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "If the email exists, a verification link has been sent"})
 }
 

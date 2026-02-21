@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/cloudflax/api.cloudflax/internal/shared/email"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
@@ -44,6 +46,9 @@ var ErrInvalidVerificationToken = fmt.Errorf("invalid verification token")
 // ErrEmailAlreadyVerified is returned when the email is already verified.
 var ErrEmailAlreadyVerified = fmt.Errorf("email already verified")
 
+// ErrEmailNotVerified is returned when login or refresh is attempted with an unverified email.
+var ErrEmailNotVerified = fmt.Errorf("email not verified")
+
 // UserRepository is the subset of the user repository the auth service depends on.
 type UserRepository interface {
 	GetUser(id string) (*user.User, error)
@@ -57,14 +62,16 @@ type Service struct {
 	repository     *Repository
 	userRepository UserRepository
 	jwtSecret      []byte
+	emailSender    email.Sender
 }
 
 // NewService creates a new auth service.
-func NewService(repository *Repository, userRepository UserRepository, jwtSecret string) *Service {
+func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.Sender) *Service {
 	return &Service{
 		repository:     repository,
 		userRepository: userRepository,
 		jwtSecret:      []byte(jwtSecret),
+		emailSender:    emailSender,
 	}
 }
 
@@ -97,6 +104,10 @@ func (service *Service) Register(name, email, password string) (*user.User, stri
 	}
 	if err := service.repository.CreateAuthProvider(provider); err != nil {
 		return nil, "", fmt.Errorf("create auth provider: %w", err)
+	}
+
+	if err := service.emailSender.SendVerificationEmail(u.Email, u.Name, token); err != nil {
+		slog.Error("send verification email after register", "email", u.Email, "error", err)
 	}
 
 	return u, token, nil
@@ -144,10 +155,16 @@ func (service *Service) ResendVerification(email string) (string, error) {
 	if err := service.userRepository.Update(u); err != nil {
 		return "", fmt.Errorf("update verification token: %w", err)
 	}
+
+	if err := service.emailSender.SendVerificationEmail(u.Email, u.Name, token); err != nil {
+		slog.Error("send verification email after resend", "email", u.Email, "error", err)
+	}
+
 	return token, nil
 }
 
 // Login verifies credentials and issues a token pair on success.
+// Returns ErrEmailNotVerified if the user has not verified their email yet.
 func (service *Service) Login(email, password string) (*TokenPair, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
@@ -156,6 +173,9 @@ func (service *Service) Login(email, password string) (*TokenPair, error) {
 	}
 	if !u.CheckPassword(password) {
 		return nil, ErrInvalidCredentials
+	}
+	if !u.IsEmailVerified() {
+		return nil, ErrEmailNotVerified
 	}
 	return service.generateTokenPair(u)
 }
@@ -179,6 +199,9 @@ func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error
 	u, err := service.userRepository.GetUser(stored.UserID)
 	if err != nil {
 		return nil, ErrInvalidCredentials
+	}
+	if !u.IsEmailVerified() {
+		return nil, ErrEmailNotVerified
 	}
 	return service.generateTokenPair(u)
 }

@@ -1,11 +1,14 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	"github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
@@ -14,6 +17,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// noopEmailSender discards all outgoing emails in tests.
+type noopEmailSender struct{}
+
+func (n *noopEmailSender) SendVerificationEmail(_, _, _ string) error { return nil }
+
+func handlerTestHashToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
 
 const testJWTSecret = "test-secret-key-for-unit-tests-only"
 
@@ -24,7 +37,7 @@ func setupAuthHandlerTest(t *testing.T) (*Handler, *Service) {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	authService := NewService(authRepository, userRepository, testJWTSecret)
+	authService := NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{})
 	authHandler := NewHandler(authService)
 	return authHandler, authService
 }
@@ -32,6 +45,15 @@ func setupAuthHandlerTest(t *testing.T) (*Handler, *Service) {
 func createTestUser(t *testing.T, name, email, password string) *user.User {
 	t.Helper()
 	u := &user.User{Name: name, Email: email}
+	require.NoError(t, u.SetPassword(password))
+	require.NoError(t, database.DB.Create(u).Error)
+	return u
+}
+
+func createVerifiedTestUser(t *testing.T, name, email, password string) *user.User {
+	t.Helper()
+	now := time.Now()
+	u := &user.User{Name: name, Email: email, EmailVerifiedAt: &now}
 	require.NoError(t, u.SetPassword(password))
 	require.NoError(t, database.DB.Create(u).Error)
 	return u
@@ -48,7 +70,7 @@ func decodeErrorResponse(t *testing.T, body io.Reader) runtimeerror.ErrorRespons
 
 func TestLogin_Success(t *testing.T) {
 	handler, _ := setupAuthHandlerTest(t)
-	createTestUser(t, "Alice", "alice@example.com", "password123")
+	createVerifiedTestUser(t, "Alice", "alice@example.com", "password123")
 
 	app := fiber.New()
 	app.Post("/auth/login", handler.Login)
@@ -111,6 +133,27 @@ func TestLogin_UserNotFound(t *testing.T) {
 	assert.Equal(t, runtimeerror.CodeInvalidCredentials, errResp.Error.Code)
 }
 
+func TestLogin_EmailNotVerified(t *testing.T) {
+	handler, _ := setupAuthHandlerTest(t)
+	createTestUser(t, "Unverified", "unverified@example.com", "password123")
+
+	app := fiber.New()
+	app.Post("/auth/login", handler.Login)
+
+	body := strings.NewReader(`{"email":"unverified@example.com","password":"password123"}`)
+	req := httptest.NewRequest("POST", "/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, runtimeerror.CodeEmailVerificationRequired, errResp.Error.Code)
+	assert.Contains(t, errResp.Error.Message, "verified")
+}
+
 func TestLogin_ValidationError(t *testing.T) {
 	handler, _ := setupAuthHandlerTest(t)
 
@@ -133,7 +176,7 @@ func TestLogin_ValidationError(t *testing.T) {
 
 func TestLogin_CaseInsensitiveEmail(t *testing.T) {
 	handler, _ := setupAuthHandlerTest(t)
-	createTestUser(t, "Carol", "carol@example.com", "password123")
+	createVerifiedTestUser(t, "Carol", "carol@example.com", "password123")
 
 	app := fiber.New()
 	app.Post("/auth/login", handler.Login)
@@ -153,7 +196,7 @@ func TestLogin_CaseInsensitiveEmail(t *testing.T) {
 
 func TestRefresh_Success(t *testing.T) {
 	handler, service := setupAuthHandlerTest(t)
-	createTestUser(t, "Dave", "dave@example.com", "password123")
+	createVerifiedTestUser(t, "Dave", "dave@example.com", "password123")
 
 	pair, err := service.Login("dave@example.com", "password123")
 	require.NoError(t, err)
@@ -201,7 +244,7 @@ func TestRefresh_InvalidToken(t *testing.T) {
 
 func TestRefresh_TokenRotation_OldTokenInvalidAfterRefresh(t *testing.T) {
 	handler, service := setupAuthHandlerTest(t)
-	createTestUser(t, "Eve", "eve@example.com", "password123")
+	createVerifiedTestUser(t, "Eve", "eve@example.com", "password123")
 
 	pair, err := service.Login("eve@example.com", "password123")
 	require.NoError(t, err)
@@ -228,11 +271,38 @@ func TestRefresh_TokenRotation_OldTokenInvalidAfterRefresh(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnauthorized, resp2.StatusCode)
 }
 
+func TestRefresh_EmailNotVerified(t *testing.T) {
+	handler, service := setupAuthHandlerTest(t)
+	u := createTestUser(t, "Unverified", "unverified@example.com", "password123")
+
+	rawToken := "refresh-token-unverified-user"
+	require.NoError(t, service.repository.Create(&RefreshToken{
+		UserID:    u.ID,
+		TokenHash: handlerTestHashToken(rawToken),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}))
+
+	app := fiber.New()
+	app.Post("/auth/refresh", handler.Refresh)
+
+	bodyStr, _ := json.Marshal(map[string]string{"refresh_token": rawToken})
+	req := httptest.NewRequest("POST", "/auth/refresh", strings.NewReader(string(bodyStr)))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
+	errResp := decodeErrorResponse(t, resp.Body)
+	assert.Equal(t, runtimeerror.CodeEmailVerificationRequired, errResp.Error.Code)
+}
+
 // --- Logout ---
 
 func TestLogout_Success(t *testing.T) {
 	handler, service := setupAuthHandlerTest(t)
-	createTestUser(t, "Frank", "frank@example.com", "password123")
+	createVerifiedTestUser(t, "Frank", "frank@example.com", "password123")
 
 	pair, err := service.Login("frank@example.com", "password123")
 	require.NoError(t, err)
@@ -363,11 +433,9 @@ func TestVerifyEmail_Success(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	app := fiber.New()
-	app.Post("/auth/verify-email", handler.VerifyEmail)
+	app.Get("/auth/verify-email", handler.VerifyEmail)
 
-	body := strings.NewReader(`{"token":"` + token + `"}`)
-	req := httptest.NewRequest("POST", "/auth/verify-email", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest("GET", "/auth/verify-email?token="+token, nil)
 
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
 	require.NoError(t, err)
@@ -385,11 +453,9 @@ func TestVerifyEmail_InvalidToken(t *testing.T) {
 	handler, _ := setupAuthHandlerTest(t)
 
 	app := fiber.New()
-	app.Post("/auth/verify-email", handler.VerifyEmail)
+	app.Get("/auth/verify-email", handler.VerifyEmail)
 
-	body := strings.NewReader(`{"token":"00000000-0000-0000-0000-000000000000"}`)
-	req := httptest.NewRequest("POST", "/auth/verify-email", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest("GET", "/auth/verify-email?token=00000000-0000-0000-0000-000000000000", nil)
 
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
 	require.NoError(t, err)

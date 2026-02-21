@@ -29,5 +29,6 @@ Seguimiento del estado del proyecto. Lo ya implementado (modelos User/Account, r
 ## Estado actual
 
 - **Completado:** Cuentas y propiedad de datos (docs/ACCOUNTS_AND_DATA_OWNERSHIP.md): modelos User/Account, registro, login JWT, cuentas, membresía, RequestContext y filtrado por account.
+- **Completado:** Envío de email de verificación vía AWS SES v2 (`internal/shared/email`). El email se envía al registrar y al reenviar verificación. Configuración: `SES_FROM_ADDRESS`, `APP_URL`. Reutiliza `AWS_REGION`, `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`.
 - **Siguiente paso:** Corto plazo — CORS (tarea 6), Request ID (7) o error handler centralizado (8).
 - **Última actualización:** 2026-02-21

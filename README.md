@@ -106,6 +106,36 @@ Si usas **LocalStack** con Secrets Manager, puedes cargar las credenciales de la
 
 La aplicación cargará el secreto **solo al arranque** y usará esos valores para la conexión a la base de datos. El resto de la configuración (`PORT`, `LOG_LEVEL`) sigue leyéndose de variables de entorno.
 
+#### 4.2 Ver correos enviados por SES en LocalStack
+
+LocalStack no entrega correos reales; los guarda en memoria. Para inspeccionar los emails enviados (p. ej. verificación de cuenta):
+
+**Requisito previo:** En LocalStack hay que **verificar la identidad del remitente** (el `SES_FROM_ADDRESS`) antes de que los envíos se acepten. Si no lo haces, los correos no se guardan y el registro puede fallar al enviar el email.
+
+```bash
+# En la máquina donde corre LocalStack (puerto 4566), verificar la identidad una vez:
+make localstack-ses-verify-identity EMAIL=jose.guerrero@cloudflax.com
+
+# O con AWS CLI directo:
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://localhost:4566 sesv2 create-email-identity --email-identity jose.guerrero@cloudflax.com --region us-east-1
+```
+
+Luego, para listar los correos enviados:
+
+- **Desde la máquina donde corre LocalStack** (puerto 4566):
+  ```bash
+  curl -s "http://localhost:4566/_aws/ses" | jq .
+  ```
+- **Desde el DevContainer** (LocalStack en el host):
+  ```bash
+  make localstack-ses-emails LOCALSTACK_ENDPOINT=http://host.docker.internal:4566
+  ```
+- Opcional: filtrar por remitente con `?email=tu-ses-from@ejemplo.com`.
+
+La respuesta incluye `Subject`, `Body` (text/html), `Destination`, `Source` y `Timestamp` de cada mensaje.
+
+**Si `messages` sale vacío:** (1) Comprueba que ejecutaste la verificación de identidad arriba antes de registrar. (2) Prueba sin filtro: `curl -s "http://localhost:4566/_aws/ses" | jq .` para ver todos los mensajes. (3) Revisa los logs de la app al arrancar por si aparece "failed to initialise SES sender" (entonces se usa noop y no se envía nada).
+
 ### 5. Comandos (dentro del DevContainer)
 
 ```bash

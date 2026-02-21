@@ -16,6 +16,7 @@ type Config struct {
 	Port      string
 	LogLevel  string // debug, info, warn, error
 	JWTSecret string
+	AppURL    string
 
 	DBHost     string
 	DBPort     int
@@ -23,6 +24,13 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string // require, verify-ca, verify-full, disable
+
+	AWSRegion          string
+	AWSEndpointURL     string
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
+
+	SESFromAddress string
 }
 
 var (
@@ -36,10 +44,16 @@ var (
 // from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:      getEnv("PORT", "3000"),
-		LogLevel:  getEnv("LOG_LEVEL", "info"),
-		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
-		JWTSecret: getEnv("JWT_SECRET", ""),
+		Port:               getEnv("PORT", ""),
+		LogLevel:           getEnv("LOG_LEVEL", ""),
+		DBSSLMode:          getEnv("DB_SSL_MODE", ""),
+		JWTSecret:          getEnv("JWT_SECRET", ""),
+		AppURL:             getEnv("APP_URL", ""),
+		AWSRegion:          getEnv("AWS_REGION", ""),
+		AWSEndpointURL:     awsEndpointURL(),
+		AWSAccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
+		AWSSecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
+		SESFromAddress:     getEnv("SES_FROM_ADDRESS", ""),
 	}
 
 	secretName := getEnv("AWS_SECRET_NAME", "")
@@ -71,10 +85,10 @@ func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.D
 
 		baseProvider, err := secrets.NewSecretsManagerProvider(ctx, secrets.SecretsManagerOptions{
 			EndpointURL:     awsEndpointURL(),
-			Region:          getEnv("AWS_REGION", "us-east-1"),
+			Region:          getEnv("AWS_REGION", ""),
 			SecretID:        secretName,
-			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "test"),
-			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
+			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
 			CacheTTL:        time.Duration(ttlSeconds) * time.Second,
 		})
 		if err != nil {
@@ -130,17 +144,17 @@ func getEnvInt(key string, defaultVal int) int {
 	return defaultVal
 }
 
-// awsEndpointURL resolves the AWS Secrets Manager endpoint URL based on the
-// current environment. In local development (APP_ENV=localstack) it defaults
-// to the LocalStack endpoint, but it can always be overridden via
-// AWS_ENDPOINT_URL.
+// awsEndpointURL resolves the AWS endpoint URL. It reads AWS_ENDPOINT_URL
+// first. When APP_ENV=localstack and no explicit URL is set, it falls back to
+// LOCALSTACK_ENDPOINT (required in that environment).
 func awsEndpointURL() string {
-	appEnv := getEnv("APP_ENV", "")
-
-	defaultEndpoint := ""
-	if appEnv == "localstack" {
-		defaultEndpoint = "http://host.docker.internal:4566"
+	if v := os.Getenv("AWS_ENDPOINT_URL"); v != "" {
+		return v
 	}
 
-	return getEnv("AWS_ENDPOINT_URL", defaultEndpoint)
+	if getEnv("APP_ENV", "") == "localstack" {
+		return getEnv("LOCALSTACK_ENDPOINT", "")
+	}
+
+	return ""
 }
