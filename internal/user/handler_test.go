@@ -23,7 +23,8 @@ func setupUserHandlerTest(t *testing.T) *Handler {
 	return NewHandler(service)
 }
 
-// decodeErrorResponse reads the body and decodes it into a runtimeerror.ErrorResponse.
+// En: decodeErrorResponse reads the body and decodes it into a runtimeerror.ErrorResponse.
+// Es: decodeErrorResponse lee el cuerpo y lo decodifica en un runtimeerror.ErrorResponse.
 func decodeErrorResponse(t *testing.T, body io.Reader) runtimeerror.ErrorResponse {
 	t.Helper()
 	var result runtimeerror.ErrorResponse

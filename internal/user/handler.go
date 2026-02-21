@@ -10,17 +10,20 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Handler handles HTTP requests for users.
+// En: Handler handles HTTP requests for users.
+// Es: Handler maneja las peticiones HTTP de usuarios.
 type Handler struct {
 	service *Service
 }
 
-// NewHandler creates a new user handler.
+// En: NewHandler creates a new user handler.
+// Es: NewHandler crea un nuevo handler de usuario.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// GetMe returns the authenticated user based on the userID stored in locals.
+// En: GetMe returns the authenticated user based on the userID stored in locals.
+// Es: GetMe devuelve el usuario autenticado según el userID almacenado en locals.
 func (handler *Handler) GetMe(ctx fiber.Ctx) error {
 	requestContext, err := requestctx.UserOnly(ctx)
 	if err != nil {
@@ -45,7 +48,8 @@ func (handler *Handler) GetMe(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"data": user})
 }
 
-// UpdateMe updates the authenticated user's own profile.
+// En: UpdateMe updates the authenticated user's own profile.
+// Es: UpdateMe actualiza el perfil propio del usuario autenticado.
 func (handler *Handler) UpdateMe(ctx fiber.Ctx) error {
 	requestContext, err := requestctx.UserOnly(ctx)
 	if err != nil {
@@ -98,7 +102,8 @@ func (handler *Handler) UpdateMe(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"data": user})
 }
 
-// CreateUser creates a new user.
+// En: CreateUser creates a new user.
+// Es: CreateUser crea un nuevo usuario.
 func (handler *Handler) CreateUser(ctx fiber.Ctx) error {
 	var req CreateUserRequest
 	if err := ctx.Bind().Body(&req); err != nil {
@@ -138,7 +143,8 @@ func (handler *Handler) CreateUser(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
 }
 
-// DeleteMe deletes the authenticated user based on the userID stored in locals.
+// En: DeleteMe deletes the authenticated user based on the userID stored in locals.
+// Es: DeleteMe elimina el usuario autenticado según el userID almacenado en locals.
 func (handler *Handler) DeleteMe(ctx fiber.Ctx) error {
 	requestContext, err := requestctx.UserOnly(ctx)
 	if err != nil {
@@ -162,7 +168,8 @@ func (handler *Handler) DeleteMe(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusNoContent).Send(nil)
 }
 
-// toErrorDetails converts validator.ValidationErrors to runtimeError.ErrorDetail slice.
+// En: toErrorDetails converts validator.ValidationErrors to runtimeError.ErrorDetail slice.
+// Es: toErrorDetails convierte validator.ValidationErrors en un slice de runtimeError.ErrorDetail.
 func toErrorDetails(ve validator.ValidationErrors) []runtimeError.ErrorDetail {
 	details := make([]runtimeError.ErrorDetail, len(ve))
 	for i, fe := range ve {

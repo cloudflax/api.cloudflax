@@ -4,7 +4,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Routes mounts user routes on the given router.
+// En: Routes mounts user routes on the given router.
+// Es: Monta las rutas de usuario en el router dado.
 func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler) {
 	//router.Post("/users", authMiddleware, handler.CreateUser)
 	router.Get("/users/me", authMiddleware, handler.GetMe)
