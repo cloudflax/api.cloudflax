@@ -114,9 +114,6 @@ LocalStack no entrega correos reales; los guarda en memoria. Para inspeccionar l
 
 ```bash
 # En la máquina donde corre LocalStack (puerto 4566), verificar la identidad una vez:
-make localstack-ses-verify-identity EMAIL=jose.guerrero@cloudflax.com
-
-# O con AWS CLI directo:
 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://localhost:4566 sesv2 create-email-identity --email-identity jose.guerrero@cloudflax.com --region us-east-1
 ```
 
@@ -128,7 +125,7 @@ Luego, para listar los correos enviados:
   ```
 - **Desde el DevContainer** (LocalStack en el host):
   ```bash
-  make localstack-ses-emails LOCALSTACK_ENDPOINT=http://host.docker.internal:4566
+  curl -s "http://host.docker.internal:4566/_aws/ses" | jq .
   ```
 - Opcional: filtrar por remitente con `?email=tu-ses-from@ejemplo.com`.
 
