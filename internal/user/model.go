@@ -1,3 +1,6 @@
+// Package user provides user identity management: profile CRUD (GetMe, UpdateMe),
+// password hashing with bcrypt, email normalization, soft delete, and session
+// revocation via TokenRevoker.
 package user
 
 import (

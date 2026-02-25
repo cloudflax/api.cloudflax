@@ -5,6 +5,7 @@ Reglas para mantener consistencia. En este archivo van:
 - **Naming** — Cómo nombrar funciones, variables, archivos y recursos.
 - **Estructura de carpetas** — Organización, rutas y layout de directorios.
 - **Estilo de código** — Formato, imports, comentarios y buenas prácticas de sintaxis.
+- **Documentación de módulos** — Comentario de paquete y README por feature.
 - **Formato de API** — Respuestas JSON y códigos de estado por operación.
 
 ---
@@ -54,6 +55,23 @@ Evitar abreviaciones y nombres cortos que obligan al lector a “traducir” men
 - **En parámetros y variables:** Usar nombres completos como `repository`, `service`, `handler`, `user`, `request`, `response`.
 - **Excepciones ampliamente conocidas:** `err` (error), `ctx` (context), `id`, `req`/`resp` en contexto HTTP — son convenciones estándar y legibles.
 - **Receivers:** Go acepta receivers de 1–2 letras; usar nombres descriptivos cuando mejoren la claridad (ej. `repository` o `svc` en lugar de `r` si hay varios receivers).
+
+---
+
+## Documentación de módulos
+
+Cada módulo en `internal/{recurso}/` debe documentarse de dos formas:
+
+1. **Comentario de paquete (godoc):** En al menos un archivo `.go` del paquete, incluir un comentario inmediatamente antes de `package ...` que empiece por `Package <nombre>`. Es el texto que muestra `go doc` y pkg.go.dev. Ejemplo:
+   ```go
+   // Package user provides user identity management: profile CRUD, password
+   // hashing, soft delete, and session revocation.
+   package user
+   ```
+
+2. **README.md:** En la carpeta del módulo, un `README.md` con arquitectura del feature, modelo de datos (tablas/campos), diccionario de errores y códigos HTTP, y consideraciones técnicas (middlewares, validaciones, integraciones). Sirve como documentación para el equipo y onboarding.
+
+Los comentarios de tipos y funciones exportados siguen las reglas de **Estilo de código** (en inglés).
 
 ---
 
