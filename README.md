@@ -69,17 +69,7 @@ git clone https://github.com/cloudflax/api.cloudflax.git
 cd api.cloudflax
 ```
 
-### 2. Certificados SSL para PostgreSQL
-
-Antes del primer `docker-compose up`, genera los certificados:
-
-```bash
-make db-certs
-```
-
-Ver [postgres/README.md](postgres/README.md) para más detalles.
-
-### 3. Entorno de Desarrollo (DevContainer)
+### 2. Entorno de Desarrollo (DevContainer)
 
 Este proyecto usa **Dev Containers** (Cursor / VS Code):
 
@@ -87,7 +77,7 @@ Este proyecto usa **Dev Containers** (Cursor / VS Code):
 2. Abre la carpeta y acepta `Reopen in Container`.
 3. El contenedor incluye: Go, Air (hot reload), golangci-lint. El hook pre-commit ejecuta `make lint` antes de cada commit.
 
-### 4. Variables de Entorno
+### 3. Variables de Entorno
 
 En Docker, las variables se configuran en `docker-compose.yml`. Las variables se cargan desde el entorno. En Docker, vienen de `docker-compose`. Para desarrollo local, usa `.env.example` como referencia:
 
@@ -102,7 +92,7 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `disable` |
 | `LOG_LEVEL`   | Nivel de log: `DEBUG`, `info`, `WARN`, `ERROR`            | `info`    |
 
-#### 4.1 Configuración con AWS Secrets Manager (LocalStack)
+#### 3.1 Configuración con AWS Secrets Manager (LocalStack)
 
 Si usas **LocalStack** con Secrets Manager, puedes cargar las credenciales de la base de datos desde un secreto en lugar de variables de entorno. El secreto debe ser un JSON con: `dbname`, `host`, `password`, `port`, `username`.
 
@@ -116,7 +106,7 @@ Si usas **LocalStack** con Secrets Manager, puedes cargar las credenciales de la
 
 La aplicación cargará el secreto **solo al arranque** y usará esos valores para la conexión a la base de datos. El resto de la configuración (`PORT`, `LOG_LEVEL`) sigue leyéndose de variables de entorno.
 
-#### 4.2 Ver correos enviados por SES en LocalStack
+#### 3.2 Ver correos enviados por SES en LocalStack
 
 LocalStack no entrega correos reales; los guarda en memoria. Para inspeccionar los emails enviados (p. ej. verificación de cuenta):
 
@@ -143,7 +133,7 @@ La respuesta incluye `Subject`, `Body` (text/html), `Destination`, `Source` y `T
 
 **Si `messages` sale vacío:** (1) Comprueba que ejecutaste la verificación de identidad arriba antes de registrar. (2) Prueba sin filtro: `curl -s "http://localhost:4566/_aws/ses" | jq .` para ver todos los mensajes. (3) Revisa los logs de la app al arrancar por si aparece "failed to initialise SES sender" (entonces se usa noop y no se envía nada).
 
-### 5. Comandos (dentro del DevContainer)
+### 4. Comandos (dentro del DevContainer)
 
 ```bash
 make build      # Compilar
@@ -153,7 +143,7 @@ make test-cover # Tests con cobertura (genera coverage.html)
 make lint       # golangci-lint
 ```
 
-### 6. Endpoints
+### 5. Endpoints
 
 | Método | Ruta       | Descripción                              |
 |--------|------------|------------------------------------------|
@@ -162,7 +152,7 @@ make lint       # golangci-lint
 | GET    | `/users`   | Lista usuarios                           |
 | GET    | `/users/:id` | Usuario por ID |
 
-### 7. Ejecución manual (sin Docker)
+### 6. Ejecución manual (sin Docker)
 
 ```bash
 go mod tidy
