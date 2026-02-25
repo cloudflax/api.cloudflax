@@ -52,7 +52,6 @@ Enfoque **feature-driven**: cada recurso tiene su carpeta con handler, service, 
 │   ├── user/             # Usuarios
 │   ├── account/          # Cuentas/organizaciones
 │   └── invoice/          # Facturas
-├── postgres/             # Configuración SSL y certificados
 ├── scripts/              # Scripts de utilidad (certs, hooks)
 ├── docs/                 # Documentación adicional
 ├── Makefile              # Comandos: build, run, test, lint
