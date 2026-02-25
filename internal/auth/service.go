@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -50,23 +51,28 @@ type UserRepository interface {
 	Update(u *user.User) error
 }
 
+// AuthVerifyEmailTemplateName is the SES template name for the verification email.
+const AuthVerifyEmailTemplateName = "AuthVerifyEmail"
+
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
 	repository     *Repository
 	userRepository UserRepository
 	jwtSecret      []byte
-	emailSender    email.Sender
+	emailSender    email.TemplatedSender
+	appURL         string
 }
 
 // En: NewService creates a new authentication service.
 // Es: NewService crea un nuevo servicio de autenticación.
-func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.Sender) *Service {
+func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.TemplatedSender, appURL string) *Service {
 	return &Service{
 		repository:     repository,
 		userRepository: userRepository,
 		jwtSecret:      []byte(jwtSecret),
 		emailSender:    emailSender,
+		appURL:         strings.TrimSuffix(strings.TrimSpace(appURL), "/"),
 	}
 }
 
@@ -100,11 +106,25 @@ func (service *Service) Register(name, email, password string) (*user.User, stri
 		return nil, "", fmt.Errorf("create auth provider: %w", err)
 	}
 
-	if err := service.emailSender.SendVerificationEmail(u.Email, u.Name, token); err != nil {
+	if err := service.sendVerificationEmail(u.Email, u.Name, token); err != nil {
 		slog.Error("send verification email after register", "email", u.Email, "error", err)
 	}
 
 	return u, token, nil
+}
+
+// sendVerificationEmail sends the AuthVerifyEmail template to the given address with name and verification link.
+func (service *Service) sendVerificationEmail(toAddress, toName, token string) error {
+	if service.appURL == "" {
+		return fmt.Errorf("app URL is required to build verification link")
+	}
+	link := fmt.Sprintf("%s/auth/verify-email?token=%s", service.appURL, token)
+	data := map[string]string{"name": toName, "link": link}
+	templateData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal verification template data: %w", err)
+	}
+	return service.emailSender.SendTemplatedEmail(toAddress, AuthVerifyEmailTemplateName, string(templateData))
 }
 
 // En: VerifyEmail marks the user's email as verified using the token previously issued during registration (or after a verification resend request).
@@ -149,7 +169,7 @@ func (service *Service) ResendVerification(email string) (string, error) {
 		return "", fmt.Errorf("update verification token: %w", err)
 	}
 
-	if err := service.emailSender.SendVerificationEmail(u.Email, u.Name, token); err != nil {
+	if err := service.sendVerificationEmail(u.Email, u.Name, token); err != nil {
 		slog.Error("send verification email after resend", "email", u.Email, "error", err)
 	}
 

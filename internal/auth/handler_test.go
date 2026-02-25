@@ -22,9 +22,9 @@ import (
 // Es: noopEmailSender descarta todos los correos electrónicos salientes en pruebas.
 type noopEmailSender struct{}
 
-// En: SendVerificationEmail does nothing in tests.
-// Es: SendVerificationEmail no hace nada en pruebas.
-func (n *noopEmailSender) SendVerificationEmail(_, _, _ string) error { return nil }
+// En: SendTemplatedEmail does nothing in tests.
+// Es: SendTemplatedEmail no hace nada en pruebas.
+func (n *noopEmailSender) SendTemplatedEmail(_, _, _ string) error { return nil }
 
 // En: handlerTestHashToken calculates the SHA-256 hash of a test token.
 // Es: handlerTestHashToken calcula el hash SHA-256 de un token de prueba.
@@ -46,7 +46,7 @@ func SetupAuthHandlerTest(test *testing.T) (*Handler, *Service) {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	authService := NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{})
+	authService := NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{}, "http://test")
 	authHandler := NewHandler(authService)
 	return authHandler, authService
 }

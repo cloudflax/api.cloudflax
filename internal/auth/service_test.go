@@ -28,7 +28,7 @@ func setupServiceTest(test *testing.T) *Service {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	return NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{})
+	return NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{}, "http://test")
 }
 
 // En: seedUser creates a test user.
@@ -127,7 +127,7 @@ func TestServiceValidateAccessTokenWrongSecret(test *testing.T) {
 	pair, err := service.Login("dave@example.com", "password123")
 	require.NoError(test, err)
 
-	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret", &noopEmailSender{})
+	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret", &noopEmailSender{}, "http://test")
 	_, _, err = otherService.ValidateAccessToken(pair.AccessToken)
 	assert.Error(test, err)
 }

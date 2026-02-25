@@ -24,7 +24,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 
 	authRepository := auth.NewRepository(database.DB)
 	userRepository := user.NewRepository(database.DB)
-	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender)
+	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender, cfg.AppURL)
 	authHandler := auth.NewHandler(authService)
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)
@@ -45,16 +45,15 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	invoice.Routes(app, invoiceHandler, requireAuth, requireAccountMember)
 }
 
-// newEmailSender builds an SES-backed Sender from the loaded config.
+// newEmailSender builds an SES-backed TemplatedSender from the loaded config.
 // Falls back to a no-op sender and logs a warning if SES cannot be initialised.
-func newEmailSender(cfg *config.Config) email.Sender {
+func newEmailSender(cfg *config.Config) email.TemplatedSender {
 	sender, err := email.NewSESSender(context.Background(), email.SESSenderOptions{
 		EndpointURL:     cfg.AWSEndpointURL,
 		Region:          cfg.AWSRegion,
 		AccessKeyID:     cfg.AWSAccessKeyID,
 		SecretAccessKey: cfg.AWSSecretAccessKey,
 		FromAddress:     cfg.SESFromAddress,
-		AppURL:          cfg.AppURL,
 	})
 	if err != nil {
 		slog.Warn("failed to initialise SES sender, falling back to noop", "error", err)
