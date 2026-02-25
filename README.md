@@ -32,19 +32,30 @@
 
 ## 📁 Estructura del Proyecto
 
+Enfoque **feature-driven**: cada recurso tiene su carpeta con handler, service, repository, model, dto, routes. Lo común está en `shared/`.
+
 ```
-├── cmd/api/           # Entry point de la API
+├── cmd/api/              # Entry point de la API y migraciones
 ├── internal/
-│   ├── app/           # Configuración Fiber y rutas
-│   ├── config/        # Carga y validación de variables de entorno
-│   ├── db/            # GORM + conexión PostgreSQL + migraciones
-│   ├── handlers/      # Handlers HTTP por ruta
-│   ├── logger/        # slog (logging estructurado JSON)
-│   ├── middleware/    # Logger de requests
-│   └── models/        # Modelos GORM (User)
-├── postgres/          # Configuración SSL y certificados
-├── scripts/           # Scripts de utilidad (certs, hooks)
-├── Makefile           # Comandos: build, run, test, lint
+│   ├── bootstrap/        # Arranque y configuración
+│   │   ├── app/          # Fiber app, Run()
+│   │   ├── config/       # Variables de entorno y secrets
+│   │   └── server/       # Router principal, montaje de rutas, handlers raíz
+│   ├── shared/           # Código compartido
+│   │   ├── database/     # Conexión GORM + PostgreSQL
+│   │   ├── logger/       # slog (logging estructurado JSON)
+│   │   ├── middleware/   # Auth, account, logger de requests
+│   │   ├── validator/    # Validaciones comunes
+│   │   ├── email/        # Envío de correos (SES)
+│   │   └── ...
+│   ├── auth/             # Autenticación (login, registro, tokens)
+│   ├── user/             # Usuarios
+│   ├── account/          # Cuentas/organizaciones
+│   └── invoice/          # Facturas
+├── postgres/             # Configuración SSL y certificados
+├── scripts/              # Scripts de utilidad (certs, hooks)
+├── docs/                 # Documentación adicional
+├── Makefile              # Comandos: build, run, test, lint
 └── docker-compose.yml
 ```
 
