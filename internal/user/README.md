@@ -70,3 +70,14 @@ El sistema responde con códigos de error estandarizados para facilitar la integ
 * **Middleware Requerido:** Los endpoints privados (`/me`) dependen del middleware `requestctx.UserOnly` para extraer el `UserID` de los locales de la petición de forma segura.
 * **Validación de UUID:** El `Service` valida estructuralmente los IDs recibidos mediante `uuid.Parse` antes de consultar al repositorio para evitar consultas innecesarias a la DB.
 * **Integridad de Unicidad:** El repositorio verifica la existencia del email mediante `Unscoped()`, asegurando que no se dupliquen correos incluso contra registros marcados como borrados.
+
+---
+
+## 🧪 Pruebas
+
+El módulo incluye tests para el **modelo** y el **handler**:
+
+* **Modelo (`model_test.go`):** Verificación de `SetPassword` (hashing Bcrypt) y `CheckPassword` (comparación segura).
+* **Handler (`handler_test.go`):** Casos de éxito y error para `GetMe`, `CreateUser`, `UpdateMe` y `DeleteMe`: autorización, usuario no encontrado, validación de campos, email duplicado (incluyendo insensibilidad a mayúsculas) y revocación de sesiones en borrado.
+
+Para ejecutar las pruebas del módulo desde la raíz del proyecto: `go test ./internal/user/...`
