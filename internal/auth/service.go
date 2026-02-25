@@ -16,6 +16,8 @@ import (
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
+// En: accessTokenDuration is the duration of the access token.
+// Es: accessTokenDuration es el tiempo de duración del token de acceso.
 const (
 	accessTokenDuration       = 15 * time.Minute
 	refreshTokenDuration      = 7 * 24 * time.Hour
@@ -23,33 +25,24 @@ const (
 	verificationTokenDuration = 24 * time.Hour
 )
 
-// Claims holds the JWT payload for access tokens.
+// En: Claims holds the JWT payload for access tokens.
+// Es: Claims contiene el payload del JWT para los tokens de acceso.
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
-// TokenPair holds the access token and refresh token issued after a successful login or refresh.
+// En: TokenPair holds the access token and refresh token issued after a successful login or refresh.
+// Es: TokenPair contiene el token de acceso y el token de actualización emitidos después de un inicio de sesión o actualización exitosos.
 type TokenPair struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
-// ErrInvalidCredentials is returned when login credentials are wrong.
-var ErrInvalidCredentials = fmt.Errorf("invalid credentials")
-
-// ErrInvalidVerificationToken is returned when the email verification token is invalid or expired.
-var ErrInvalidVerificationToken = fmt.Errorf("invalid verification token")
-
-// ErrEmailAlreadyVerified is returned when the email is already verified.
-var ErrEmailAlreadyVerified = fmt.Errorf("email already verified")
-
-// ErrEmailNotVerified is returned when login or refresh is attempted with an unverified email.
-var ErrEmailNotVerified = fmt.Errorf("email not verified")
-
-// UserRepository is the subset of the user repository the auth service depends on.
+// En: UserRepository is the subset of the user repository that the authentication service depends on.
+// Es: UserRepository es el subconjunto del repositorio de usuarios en el que depende el servicio de autenticación.
 type UserRepository interface {
 	GetUser(id string) (*user.User, error)
 	GetUserByEmail(email string) (*user.User, error)
@@ -57,7 +50,8 @@ type UserRepository interface {
 	Update(u *user.User) error
 }
 
-// Service handles authentication business logic.
+// En: Service handles the business logic of authentication.
+// Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
 	repository     *Repository
 	userRepository UserRepository
@@ -65,7 +59,8 @@ type Service struct {
 	emailSender    email.Sender
 }
 
-// NewService creates a new auth service.
+// En: NewService creates a new authentication service.
+// Es: NewService crea un nuevo servicio de autenticación.
 func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.Sender) *Service {
 	return &Service{
 		repository:     repository,
@@ -75,9 +70,8 @@ func NewService(repository *Repository, userRepository UserRepository, jwtSecret
 	}
 }
 
-// Register creates a new user with an email/password credential and a pending
-// email verification token. The raw verification token is returned so callers
-// can hand it to the user (e.g. embed it in a verification link).
+// En: Register creates a new user with an email/password credential and a pending email verification token.
+// Es: Register crea un nuevo usuario con una credencial de correo electrónico/contraseña y un token de verificación de correo electrónico pendiente.
 func (service *Service) Register(name, email, password string) (*user.User, string, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 
@@ -113,8 +107,8 @@ func (service *Service) Register(name, email, password string) (*user.User, stri
 	return u, token, nil
 }
 
-// VerifyEmail marks the user's email as verified using the token previously issued
-// during registration (or after a resend-verification request).
+// En: VerifyEmail marks the user's email as verified using the token previously issued during registration (or after a verification resend request).
+// Es: VerifyEmail marca el correo electrónico del usuario como verificado usando el token previamente emitido durante el registro (o después de una solicitud de reenvío de verificación).
 func (service *Service) VerifyEmail(token string) error {
 	u, err := service.repository.FindByVerificationToken(token)
 	if err != nil {
@@ -133,9 +127,8 @@ func (service *Service) VerifyEmail(token string) error {
 	return service.userRepository.Update(u)
 }
 
-// ResendVerification generates a fresh email verification token for the given email address.
-// In production this would trigger an email send; here the token is returned so the caller
-// can deliver it (e.g. log it or return it in a dev-only response field).
+// En: ResendVerification generates a new email verification token for the given email.
+// Es: ResendVerification genera un nuevo token de verificación de correo electrónico para el correo electrónico dado.
 func (service *Service) ResendVerification(email string) (string, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 
@@ -163,8 +156,8 @@ func (service *Service) ResendVerification(email string) (string, error) {
 	return token, nil
 }
 
-// Login verifies credentials and issues a token pair on success.
-// Returns ErrEmailNotVerified if the user has not verified their email yet.
+// En: Login verifies the credentials and emits a token pair in case of success.
+// Es: Login verifica las credenciales y emite un par de tokens en caso de éxito.
 func (service *Service) Login(email, password string) (*TokenPair, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
@@ -180,8 +173,8 @@ func (service *Service) Login(email, password string) (*TokenPair, error) {
 	return service.generateTokenPair(u)
 }
 
-// RefreshTokens validates an existing refresh token, revokes it (rotation),
-// and issues a new token pair.
+// En: RefreshTokens validates an existing refresh token, revokes it (rotation) and emits a new token pair.
+// Es: RefreshTokens valida un token de actualización existente, lo revoca (rotación) y emite un nuevo par de tokens.
 func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error) {
 	tokenHash := hashToken(rawRefreshToken)
 	stored, err := service.repository.GetByTokenHash(tokenHash)
@@ -206,14 +199,14 @@ func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error
 	return service.generateTokenPair(u)
 }
 
-// Logout revokes all active refresh tokens for the given user.
+// En: Logout revokes all active refresh tokens for the given user.
+// Es: Logout revoca todos los tokens de actualización activos para el usuario dado.
 func (service *Service) Logout(userID string) error {
 	return service.repository.RevokeAllByUserID(userID)
 }
 
-// ValidateAccessToken parses and validates a JWT access token.
-// Returns the userID and email embedded in the token claims.
-// This method satisfies the middleware.TokenValidator interface.
+// En: ValidateAccessToken validates and analyzes a JWT access token.
+// Es: ValidateAccessToken analiza y valida un token de acceso JWT.
 func (service *Service) ValidateAccessToken(tokenString string) (string, string, error) {
 	claims, err := service.parseAccessToken(tokenString)
 	if err != nil {
@@ -222,7 +215,8 @@ func (service *Service) ValidateAccessToken(tokenString string) (string, string,
 	return claims.UserID, claims.Email, nil
 }
 
-// parseAccessToken parses the JWT and returns the full Claims struct.
+// En: parseAccessToken analyzes the JWT and returns the complete Claims struct.
+// Es: parseAccessToken analiza el JWT y devuelve el struct Claims completo.
 func (service *Service) parseAccessToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (any, error) {
@@ -237,7 +231,8 @@ func (service *Service) parseAccessToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-// generateTokenPair creates and stores a new access + refresh token pair for the given user.
+// En: generateTokenPair creates and stores a new access token and refresh token pair for the given user.
+// Es: generateTokenPair crea y almacena un nuevo par de tokens de acceso y actualización para el usuario dado.
 func (service *Service) generateTokenPair(u *user.User) (*TokenPair, error) {
 	expiresAt := time.Now().Add(accessTokenDuration)
 	accessToken, err := service.signAccessToken(u, expiresAt)
@@ -266,7 +261,8 @@ func (service *Service) generateTokenPair(u *user.User) (*TokenPair, error) {
 	}, nil
 }
 
-// signAccessToken builds and signs a JWT for the given user.
+// En: signAccessToken builds and signs a JWT for the given user.
+// Es: signAccessToken construye y firma un JWT para el usuario dado.
 func (service *Service) signAccessToken(u *user.User, expiresAt time.Time) (string, error) {
 	claims := &Claims{
 		UserID: u.ID,
@@ -281,7 +277,8 @@ func (service *Service) signAccessToken(u *user.User, expiresAt time.Time) (stri
 	return token.SignedString(service.jwtSecret)
 }
 
-// generateSecureToken creates a cryptographically random hex-encoded token.
+// En: generateSecureToken creates a cryptographically random hex-encoded token.
+// Es: generateSecureToken crea un token hex-codificado de forma criptográficamente aleatoria.
 func generateSecureToken() (string, error) {
 	bytes := make([]byte, refreshTokenBytes)
 	if _, err := rand.Read(bytes); err != nil {
@@ -290,7 +287,8 @@ func generateSecureToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// hashToken returns the SHA-256 hex hash of a raw token string.
+// En: hashToken returns the SHA-256 hex hash of a raw token string.
+// Es: hashToken devuelve el hash SHA-256 hex de una cadena de token sin procesar.
 func hashToken(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])

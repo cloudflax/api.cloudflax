@@ -12,241 +12,284 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// En: hashTokenForTest calculates the SHA-256 hash of a test token.
+// Es: hashTokenForTest calcula el hash SHA-256 de un token de prueba.
 func hashTokenForTest(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }
 
-func setupServiceTest(t *testing.T) *Service {
-	t.Helper()
-	require.NoError(t, database.InitForTesting())
-	require.NoError(t, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+// En: setupServiceTest sets up the authentication service for tests.
+// Es: setupServiceTest configura el servicio de autenticación para pruebas.
+func setupServiceTest(test *testing.T) *Service {
+	test.Helper()
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	return NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{})
 }
 
-func seedUser(t *testing.T, name, email, password string) *user.User {
-	t.Helper()
+// En: seedUser creates a test user.
+// Es: seedUser crea un usuario para pruebas.
+func seedUser(test *testing.T, name, email, password string) *user.User {
+	test.Helper()
 	u := &user.User{Name: name, Email: email}
-	require.NoError(t, u.SetPassword(password))
-	require.NoError(t, database.DB.Create(u).Error)
+	require.NoError(test, u.SetPassword(password))
+	require.NoError(test, database.DB.Create(u).Error)
 	return u
 }
 
-// seedVerifiedUser creates a user with email_verified_at set so Login and Refresh succeed.
-func seedVerifiedUser(t *testing.T, name, email, password string) *user.User {
-	t.Helper()
+// En: seedVerifiedUser creates a verified test user.
+// Es: seedVerifiedUser crea un usuario con emailverifiedat establecido para que Login y Refresh tengan éxito.
+func seedVerifiedUser(test *testing.T, name, email, password string) *user.User {
+	test.Helper()
 	now := time.Now()
 	u := &user.User{Name: name, Email: email, EmailVerifiedAt: &now}
-	require.NoError(t, u.SetPassword(password))
-	require.NoError(t, database.DB.Create(u).Error)
+	require.NoError(test, u.SetPassword(password))
+	require.NoError(test, database.DB.Create(u).Error)
 	return u
 }
 
-func TestService_Login_Success(t *testing.T) {
-	service := setupServiceTest(t)
-	seedVerifiedUser(t, "Alice", "alice@example.com", "password123")
+// En: TestServiceLoginSuccess tests the successful login.
+// Es: TestServiceLoginSuccess prueba el inicio de sesión exitoso.
+func TestServiceLoginSuccess(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Alice", "alice@example.com", "password123")
 
 	pair, err := service.Login("alice@example.com", "password123")
-	require.NoError(t, err)
-	assert.NotEmpty(t, pair.AccessToken)
-	assert.NotEmpty(t, pair.RefreshToken)
-	assert.False(t, pair.ExpiresAt.IsZero())
+	require.NoError(test, err)
+	assert.NotEmpty(test, pair.AccessToken)
+	assert.NotEmpty(test, pair.RefreshToken)
+	assert.False(test, pair.ExpiresAt.IsZero())
 }
 
-func TestService_Login_InvalidCredentials(t *testing.T) {
-	service := setupServiceTest(t)
-	seedUser(t, "Bob", "bob@example.com", "correctpass")
+// En: TestServiceLoginInvalidCredentials tests the login with invalid credentials.
+// Es: TestServiceLoginInvalidCredentials prueba el inicio de sesión con credenciales inválidas.
+func TestServiceLoginInvalidCredentials(test *testing.T) {
+	service := setupServiceTest(test)
+	seedUser(test, "Bob", "bob@example.com", "correctpass")
 
 	_, err := service.Login("bob@example.com", "wrongpass")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	assert.ErrorIs(test, err, ErrInvalidCredentials)
 }
 
-func TestService_Login_UnknownEmail(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceLoginUnknownEmail tests the login with an unknown email.
+// Es: TestServiceLoginUnknownEmail prueba el inicio de sesión con correo electrónico desconocido.
+func TestServiceLoginUnknownEmail(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, err := service.Login("ghost@example.com", "password123")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	assert.ErrorIs(test, err, ErrInvalidCredentials)
 }
 
-func TestService_Login_EmailNotVerified(t *testing.T) {
-	service := setupServiceTest(t)
-	seedUser(t, "Unverified", "unverified@example.com", "password123")
+// En: TestServiceLoginEmailNotVerified tests the login with an unverified email.
+// Es: TestServiceLoginEmailNotVerified prueba el inicio de sesión con correo electrónico no verificado.
+func TestServiceLoginEmailNotVerified(test *testing.T) {
+	service := setupServiceTest(test)
+	seedUser(test, "Unverified", "unverified@example.com", "password123")
 
 	_, err := service.Login("unverified@example.com", "password123")
-	assert.ErrorIs(t, err, ErrEmailNotVerified)
+	assert.ErrorIs(test, err, ErrEmailNotVerified)
 }
 
-func TestService_ValidateAccessToken_Valid(t *testing.T) {
-	service := setupServiceTest(t)
-	seedVerifiedUser(t, "Carol", "carol@example.com", "password123")
+// En: TestServiceValidateAccessTokenValid tests the validation of a valid access token.
+// Es: TestServiceValidateAccessTokenValid prueba la validación de token de acceso válido.
+func TestServiceValidateAccessTokenValid(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Carol", "carol@example.com", "password123")
 
 	pair, err := service.Login("carol@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	userID, email, err := service.ValidateAccessToken(pair.AccessToken)
-	require.NoError(t, err)
-	assert.NotEmpty(t, userID)
-	assert.Equal(t, "carol@example.com", email)
+	require.NoError(test, err)
+	assert.NotEmpty(test, userID)
+	assert.Equal(test, "carol@example.com", email)
 }
 
-func TestService_ValidateAccessToken_Invalid(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceValidateAccessTokenInvalid tests the validation of an invalid access token.
+// Es: TestServiceValidateAccessTokenInvalid prueba la validación de token de acceso inválido.
+func TestServiceValidateAccessTokenInvalid(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, _, err := service.ValidateAccessToken("invalid.token.here")
-	assert.Error(t, err)
+	assert.Error(test, err)
 }
 
-func TestService_ValidateAccessToken_WrongSecret(t *testing.T) {
-	service := setupServiceTest(t)
-	seedVerifiedUser(t, "Dave", "dave@example.com", "password123")
+// En: TestServiceValidateAccessTokenWrongSecret tests the validation of an access token with a wrong secret.
+// Es: TestServiceValidateAccessTokenWrongSecret prueba la validación de token de acceso con secreto incorrecto.
+func TestServiceValidateAccessTokenWrongSecret(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Dave", "dave@example.com", "password123")
 
 	pair, err := service.Login("dave@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret", &noopEmailSender{})
 	_, _, err = otherService.ValidateAccessToken(pair.AccessToken)
-	assert.Error(t, err)
+	assert.Error(test, err)
 }
 
-func TestService_RefreshTokens_Success(t *testing.T) {
-	service := setupServiceTest(t)
-	seedVerifiedUser(t, "Eve", "eve@example.com", "password123")
+// En: TestServiceRefreshTokensSuccess tests the successful refresh of tokens.
+// Es: TestServiceRefreshTokensSuccess prueba el refresco de tokens exitoso.
+func TestServiceRefreshTokensSuccess(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Eve", "eve@example.com", "password123")
 
 	pair, err := service.Login("eve@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	newPair, err := service.RefreshTokens(pair.RefreshToken)
-	require.NoError(t, err)
-	assert.NotEmpty(t, newPair.AccessToken)
-	assert.NotEmpty(t, newPair.RefreshToken)
-	assert.NotEqual(t, pair.RefreshToken, newPair.RefreshToken)
+	require.NoError(test, err)
+	assert.NotEmpty(test, newPair.AccessToken)
+	assert.NotEmpty(test, newPair.RefreshToken)
+	assert.NotEqual(test, pair.RefreshToken, newPair.RefreshToken)
 }
 
-func TestService_RefreshTokens_Rotation(t *testing.T) {
-	service := setupServiceTest(t)
-	seedVerifiedUser(t, "Frank", "frank@example.com", "password123")
+// En: TestServiceRefreshTokensRotation tests the refresh of tokens with rotation.
+// Es: TestServiceRefreshTokensRotation prueba el refresco de tokens con rotación.
+func TestServiceRefreshTokensRotation(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Frank", "frank@example.com", "password123")
 
 	pair, err := service.Login("frank@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	_, err = service.RefreshTokens(pair.RefreshToken)
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	_, err = service.RefreshTokens(pair.RefreshToken)
-	assert.ErrorIs(t, err, ErrInvalidCredentials, "reusing a rotated refresh token must fail")
+	assert.ErrorIs(test, err, ErrInvalidCredentials, "reusing a rotated refresh token must fail")
 }
 
-func TestService_RefreshTokens_InvalidToken(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceRefreshTokensInvalidToken tests the refresh of tokens with an invalid token.
+// Es: TestServiceRefreshTokensInvalidToken prueba el refresco de tokens con token inválido.
+func TestServiceRefreshTokensInvalidToken(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, err := service.RefreshTokens("random-invalid-token")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	assert.ErrorIs(test, err, ErrInvalidCredentials)
 }
 
-func TestService_RefreshTokens_EmailNotVerified(t *testing.T) {
-	service := setupServiceTest(t)
-	u := seedUser(t, "Unverified", "unverified@example.com", "password123")
+// En: TestServiceRefreshTokensEmailNotVerified tests the refresh of tokens with an unverified email.
+// Es: TestServiceRefreshTokensEmailNotVerified prueba el refresco de tokens con correo electrónico no verificado.
+func TestServiceRefreshTokensEmailNotVerified(test *testing.T) {
+	service := setupServiceTest(test)
+	u := seedUser(test, "Unverified", "unverified@example.com", "password123")
 
 	// Manually create a refresh token for the unverified user (e.g. from before we required verification).
 	rawToken := "test-refresh-token-for-unverified-user"
 	hash := hashTokenForTest(rawToken)
 	expiresAt := time.Now().Add(24 * time.Hour)
-	require.NoError(t, service.repository.Create(&RefreshToken{
+	require.NoError(test, service.repository.Create(&RefreshToken{
 		UserID:    u.ID,
 		TokenHash: hash,
 		ExpiresAt: expiresAt,
 	}))
 
 	_, err := service.RefreshTokens(rawToken)
-	assert.ErrorIs(t, err, ErrEmailNotVerified)
+	assert.ErrorIs(test, err, ErrEmailNotVerified)
 }
 
-func TestService_Register_Success(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceRegisterSuccess tests the successful registration.
+// Es: TestServiceRegisterSuccess prueba el registro exitoso.
+func TestServiceRegisterSuccess(test *testing.T) {
+	service := setupServiceTest(test)
 
 	u, token, err := service.Register("Alice", "alice@example.com", "password123")
-	require.NoError(t, err)
-	assert.NotEmpty(t, u.ID)
-	assert.Equal(t, "alice@example.com", u.Email)
-	assert.Nil(t, u.EmailVerifiedAt)
-	assert.NotEmpty(t, token)
+	require.NoError(test, err)
+	assert.NotEmpty(test, u.ID)
+	assert.Equal(test, "alice@example.com", u.Email)
+	assert.Nil(test, u.EmailVerifiedAt)
+	assert.NotEmpty(test, token)
 
 	var provider UserAuthProvider
-	require.NoError(t, database.DB.Where("user_id = ? AND provider = ?", u.ID, ProviderCredentials).First(&provider).Error)
-	assert.Equal(t, "alice@example.com", provider.ProviderSubjectID)
+	require.NoError(test, database.DB.Where("user_id = ? AND provider = ?", u.ID, ProviderCredentials).First(&provider).Error)
+	assert.Equal(test, "alice@example.com", provider.ProviderSubjectID)
 }
 
-func TestService_Register_DuplicateEmail(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceRegisterDuplicateEmail tests the registration with a duplicate email.
+// Es: TestServiceRegisterDuplicateEmail prueba el registro con correo electrónico duplicado.
+func TestServiceRegisterDuplicateEmail(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, _, err := service.Register("Alice", "dup@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	_, _, err = service.Register("Bob", "dup@example.com", "password456")
-	assert.ErrorIs(t, err, user.ErrDuplicateEmail)
+	assert.ErrorIs(test, err, user.ErrDuplicateEmail)
 }
 
-func TestService_VerifyEmail_Success(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceVerifyEmailSuccess tests the successful email verification.
+// Es: TestServiceVerifyEmailSuccess prueba la verificación de correo electrónico exitosa.
+func TestServiceVerifyEmailSuccess(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, token, err := service.Register("Carol", "carol@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
-	require.NoError(t, service.VerifyEmail(token))
+	require.NoError(test, service.VerifyEmail(token))
 
 	var u user.User
-	require.NoError(t, database.DB.Where("email = ?", "carol@example.com").First(&u).Error)
-	assert.NotNil(t, u.EmailVerifiedAt)
-	assert.Nil(t, u.EmailVerificationToken)
+	require.NoError(test, database.DB.Where("email = ?", "carol@example.com").First(&u).Error)
+	assert.NotNil(test, u.EmailVerifiedAt)
+	assert.Nil(test, u.EmailVerificationToken)
 }
 
-func TestService_VerifyEmail_InvalidToken(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceVerifyEmailInvalidToken tests the email verification with an invalid token.
+// Es: TestServiceVerifyEmailInvalidToken prueba la verificación de correo electrónico con token inválido.
+func TestServiceVerifyEmailInvalidToken(test *testing.T) {
+	service := setupServiceTest(test)
 
 	err := service.VerifyEmail("00000000-0000-0000-0000-000000000000")
-	assert.ErrorIs(t, err, ErrInvalidVerificationToken)
+	assert.ErrorIs(test, err, ErrInvalidVerificationToken)
 }
 
-func TestService_ResendVerification_Success(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceResendVerificationSuccess tests the successful email verification resend.
+// Es: TestServiceResendVerificationSuccess prueba el envío de correo de verificación exitoso.
+func TestServiceResendVerificationSuccess(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, oldToken, err := service.Register("Dan", "dan@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
 	newToken, err := service.ResendVerification("dan@example.com")
-	require.NoError(t, err)
-	assert.NotEmpty(t, newToken)
-	assert.NotEqual(t, oldToken, newToken)
+	require.NoError(test, err)
+	assert.NotEmpty(test, newToken)
+	assert.NotEqual(test, oldToken, newToken)
 }
 
-func TestService_ResendVerification_AlreadyVerified(t *testing.T) {
-	service := setupServiceTest(t)
+// En: TestServiceResendVerificationAlreadyVerified tests the email verification resend with an already verified email.
+// Es: TestServiceResendVerificationAlreadyVerified prueba el envío de correo de verificación con correo electrónico ya verificado.
+func TestServiceResendVerificationAlreadyVerified(test *testing.T) {
+	service := setupServiceTest(test)
 
 	_, token, err := service.Register("Eve", "eve@example.com", "password123")
-	require.NoError(t, err)
-	require.NoError(t, service.VerifyEmail(token))
+	require.NoError(test, err)
+	require.NoError(test, service.VerifyEmail(token))
 
 	_, err = service.ResendVerification("eve@example.com")
-	assert.ErrorIs(t, err, ErrEmailAlreadyVerified)
+	assert.ErrorIs(test, err, ErrEmailAlreadyVerified)
 }
 
-func TestService_Logout_RevokesAllTokens(t *testing.T) {
-	service := setupServiceTest(t)
-	u := seedVerifiedUser(t, "Grace", "grace@example.com", "password123")
+// En: TestServiceLogoutRevokesAllTokens tests the logout and revocation of all tokens.
+// Es: TestServiceLogoutRevokesAllTokens prueba el cierre de sesión y revocación de todos los tokens.
+func TestServiceLogoutRevokesAllTokens(test *testing.T) {
+	service := setupServiceTest(test)
+	u := seedVerifiedUser(test, "Grace", "grace@example.com", "password123")
 
 	pair1, err := service.Login("grace@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 	pair2, err := service.Login("grace@example.com", "password123")
-	require.NoError(t, err)
+	require.NoError(test, err)
 
-	require.NoError(t, service.Logout(u.ID))
+	require.NoError(test, service.Logout(u.ID))
 
 	_, err = service.RefreshTokens(pair1.RefreshToken)
-	assert.ErrorIs(t, err, ErrInvalidCredentials, "first session token should be revoked after logout")
+	assert.ErrorIs(test, err, ErrInvalidCredentials, "first session token should be revoked after logout")
 
 	_, err = service.RefreshTokens(pair2.RefreshToken)
-	assert.ErrorIs(t, err, ErrInvalidCredentials, "second session token should be revoked after logout")
+	assert.ErrorIs(test, err, ErrInvalidCredentials, "second session token should be revoked after logout")
 }

@@ -1,3 +1,5 @@
+// Package auth provides authentication: registration with email verification,
+// login/refresh token pairs, JWT access tokens, and logout (revoke refresh tokens).
 package auth
 
 import (
@@ -7,7 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ProviderType identifies the authentication provider.
+// En: ProviderType identifies the authentication provider.
+// Es: ProviderType identifica el proveedor de autenticación.
 type ProviderType string
 
 const (
@@ -16,8 +19,8 @@ const (
 	ProviderFacebook    ProviderType = "facebook"
 )
 
-// UserAuthProvider links a User to an external authentication provider.
-// UNIQUE(provider, provider_subject_id) ensures one identity per provider slot.
+// En: UserAuthProvider links a User to an external authentication provider.
+// Es: UserAuthProvider enlaza un Usuario a un proveedor de autenticación externo.
 type UserAuthProvider struct {
 	ID                string       `gorm:"type:uuid;primaryKey" json:"id"`
 	UserID            string       `gorm:"type:uuid;not null;index" json:"user_id"`
@@ -27,12 +30,14 @@ type UserAuthProvider struct {
 	UpdatedAt         time.Time    `json:"updated_at"`
 }
 
-// TableName overrides the table name.
+// En: TableName overrides the table name.
+// Es: TableName sobrescribe el nombre de la tabla.
 func (UserAuthProvider) TableName() string {
 	return "user_auth_providers"
 }
 
-// BeforeCreate generates UUID before insert.
+// En: BeforeCreate generates UUID before insert.
+// Es: BeforeCreate genera UUID antes de insertar.
 func (p *UserAuthProvider) BeforeCreate(_ *gorm.DB) error {
 	if p.ID == "" {
 		p.ID = uuid.New().String()
@@ -40,8 +45,8 @@ func (p *UserAuthProvider) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
-// RefreshToken represents a stored refresh token tied to a user session.
-// The raw token is never persisted; only its SHA-256 hash is stored.
+// En: RefreshToken represents a stored refresh token tied to a user session.
+// Es: RefreshToken representa un token de actualización almacenado asociado a una sesión de usuario.
 type RefreshToken struct {
 	ID        string         `gorm:"type:uuid;primaryKey" json:"-"`
 	UserID    string         `gorm:"type:uuid;not null;index" json:"-"`
@@ -52,12 +57,14 @@ type RefreshToken struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-// TableName overrides the table name.
+// En: TableName overrides the table name.
+// Es: TableName sobrescribe el nombre de la tabla.
 func (RefreshToken) TableName() string {
 	return "refresh_tokens"
 }
 
-// BeforeCreate generates UUID before insert.
+// En: BeforeCreate generates UUID before insert.
+// Es: BeforeCreate genera UUID antes de insertar.
 func (rt *RefreshToken) BeforeCreate(_ *gorm.DB) error {
 	if rt.ID == "" {
 		rt.ID = uuid.New().String()
@@ -65,12 +72,14 @@ func (rt *RefreshToken) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
-// IsExpired returns true if the token has passed its expiry time.
+// En: IsExpired returns true if the token has passed its expiry time.
+// Es: IsExpired devuelve true si el token ha pasado su tiempo de expiración.
 func (rt *RefreshToken) IsExpired() bool {
 	return time.Now().After(rt.ExpiresAt)
 }
 
-// IsRevoked returns true if the token has been explicitly revoked.
+// En: IsRevoked returns true if the token has been explicitly revoked.
+// Es: IsRevoked devuelve true si el token ha sido revocado explícitamente.
 func (rt *RefreshToken) IsRevoked() bool {
 	return rt.RevokedAt != nil
 }

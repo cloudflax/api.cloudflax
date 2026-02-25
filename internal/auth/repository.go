@@ -9,20 +9,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrTokenNotFound is returned when a refresh token does not exist.
-var ErrTokenNotFound = fmt.Errorf("refresh token not found")
-
-// Repository handles refresh token data access.
+// En: Repository handles refresh token data access.
+// Es: Repository maneja el acceso a los datos de los tokens de actualización.
 type Repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new auth repository.
+// En: NewRepository creates a new auth repository.
+// Es: NewRepository crea un nuevo repositorio de autenticación.
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// Create persists a new refresh token.
+// En: Create persists a new refresh token.
+// Es: Create persiste un nuevo token de actualización.
 func (repository *Repository) Create(token *RefreshToken) error {
 	if err := repository.db.Create(token).Error; err != nil {
 		return fmt.Errorf("create refresh token: %w", err)
@@ -30,7 +30,8 @@ func (repository *Repository) Create(token *RefreshToken) error {
 	return nil
 }
 
-// GetByTokenHash returns a refresh token by its SHA-256 hash.
+// En: GetByTokenHash returns a refresh token by its SHA-256 hash.
+// Es: GetByTokenHash devuelve un token de actualización por su hash SHA-256.
 func (repository *Repository) GetByTokenHash(hash string) (*RefreshToken, error) {
 	var token RefreshToken
 	if err := repository.db.Where("token_hash = ?", hash).First(&token).Error; err != nil {
@@ -42,7 +43,8 @@ func (repository *Repository) GetByTokenHash(hash string) (*RefreshToken, error)
 	return &token, nil
 }
 
-// Revoke marks a single refresh token as revoked by its ID.
+// En: Revoke marks a single refresh token as revoked by its ID.
+// Es: Revoca un token de actualización por su ID.
 func (repository *Repository) Revoke(id string) error {
 	now := time.Now()
 	result := repository.db.Model(&RefreshToken{}).Where("id = ?", id).Update("revoked_at", now)
@@ -55,7 +57,8 @@ func (repository *Repository) Revoke(id string) error {
 	return nil
 }
 
-// RevokeAllByUserID revokes all active refresh tokens for a given user (used on logout).
+// En: RevokeAllByUserID revokes all active refresh tokens for a given user (used on logout).
+// Es: Revoca todos los tokens de actualización activos para un usuario dado (usado en el cierre de sesión).
 func (repository *Repository) RevokeAllByUserID(userID string) error {
 	now := time.Now()
 	if err := repository.db.Model(&RefreshToken{}).
@@ -66,7 +69,8 @@ func (repository *Repository) RevokeAllByUserID(userID string) error {
 	return nil
 }
 
-// CreateAuthProvider persists a new UserAuthProvider record.
+// En: CreateAuthProvider persists a new UserAuthProvider record.
+// Es: CreateAuthProvider persiste un nuevo registro de UserAuthProvider.
 func (repository *Repository) CreateAuthProvider(provider *UserAuthProvider) error {
 	if err := repository.db.Create(provider).Error; err != nil {
 		return fmt.Errorf("create auth provider: %w", err)
@@ -74,7 +78,8 @@ func (repository *Repository) CreateAuthProvider(provider *UserAuthProvider) err
 	return nil
 }
 
-// FindByProviderAndSubject returns the UserAuthProvider matching the given provider type and subject ID.
+// En: FindByProviderAndSubject returns the UserAuthProvider matching the given provider type and subject ID.
+// Es: FindByProviderAndSubject devuelve el UserAuthProvider que coincide con el tipo de proveedor y el ID de sujeto dado.
 func (repository *Repository) FindByProviderAndSubject(provider ProviderType, subjectID string) (*UserAuthProvider, error) {
 	var p UserAuthProvider
 	err := repository.db.
@@ -89,7 +94,8 @@ func (repository *Repository) FindByProviderAndSubject(provider ProviderType, su
 	return &p, nil
 }
 
-// FindByVerificationToken returns the user that owns the given email verification token.
+// En: FindByVerificationToken returns the user that owns the given email verification token.
+// Es: FindByVerificationToken devuelve el usuario que posee el token de verificación de correo electrónico dado.
 func (repository *Repository) FindByVerificationToken(token string) (*user.User, error) {
 	var u user.User
 	err := repository.db.Where("email_verification_token = ?", token).First(&u).Error

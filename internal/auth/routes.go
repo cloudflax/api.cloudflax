@@ -4,7 +4,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Routes mounts auth routes on the given router.
+// En: Routes mounts auth routes on the given router.
+// Es: Monta las rutas de autenticación en el router dado.
 func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler) {
 	auth := router.Group("/auth")
 	auth.Post("/register", handler.Register)
