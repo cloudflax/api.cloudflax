@@ -217,3 +217,95 @@ func TestCreateAccount_SlugTaken(t *testing.T) {
 	errResp := decodeErrorResponse(t, resp.Body)
 	assert.Equal(t, runtimeerror.CodeAccountSlugTaken, errResp.Error.Code)
 }
+
+func TestSetActiveAccount_Success(t *testing.T) {
+	handler, _ := setupHandlerTest(t)
+	owner := seedVerifiedUserForHandler(t, "Grace", "grace@example.com")
+
+	// First create an account for the owner
+	app := fiber.New()
+	app.Post("/accounts", func(c fiber.Ctx) error {
+		c.Locals("userID", owner.ID)
+		return c.Next()
+	}, handler.CreateAccount)
+
+	createReq := httptest.NewRequest("POST", "/accounts", strings.NewReader(`{"name":"Grace Org"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, err := app.Test(createReq, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer createResp.Body.Close()
+	require.Equal(t, fiber.StatusCreated, createResp.StatusCode)
+
+	var created struct {
+		Data Account `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	// Now mount the active account endpoint
+	app.Post("/accounts/active", func(c fiber.Ctx) error {
+		c.Locals("userID", owner.ID)
+		return c.Next()
+	}, handler.SetActiveAccount)
+
+	activeReqBody := `{"account_id":"` + created.Data.ID + `"}`
+	activeReq := httptest.NewRequest("POST", "/accounts/active", strings.NewReader(activeReqBody))
+	activeReq.Header.Set("Content-Type", "application/json")
+
+	activeResp, err := app.Test(activeReq, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer activeResp.Body.Close()
+
+	assert.Equal(t, fiber.StatusOK, activeResp.StatusCode)
+
+	var activeResult struct {
+		Data struct {
+			ActiveAccountID string `json:"active_account_id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(activeResp.Body).Decode(&activeResult))
+	assert.Equal(t, created.Data.ID, activeResult.Data.ActiveAccountID)
+}
+
+func TestSetActiveAccount_NotMember(t *testing.T) {
+	handler, _ := setupHandlerTest(t)
+	owner := seedVerifiedUserForHandler(t, "Kelly", "kelly@example.com")
+	other := seedVerifiedUserForHandler(t, "Liam", "liam@example.com")
+
+	app := fiber.New()
+
+	// Create account for owner
+	app.Post("/accounts", func(c fiber.Ctx) error {
+		c.Locals("userID", owner.ID)
+		return c.Next()
+	}, handler.CreateAccount)
+
+	createReq := httptest.NewRequest("POST", "/accounts", strings.NewReader(`{"name":"Owner Org"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, err := app.Test(createReq, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer createResp.Body.Close()
+	require.Equal(t, fiber.StatusCreated, createResp.StatusCode)
+
+	var created struct {
+		Data Account `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	// Mount active endpoint, simulating authenticated as "other"
+	app.Post("/accounts/active", func(c fiber.Ctx) error {
+		c.Locals("userID", other.ID)
+		return c.Next()
+	}, handler.SetActiveAccount)
+
+	activeReqBody := `{"account_id":"` + created.Data.ID + `"}`
+	activeReq := httptest.NewRequest("POST", "/accounts/active", strings.NewReader(activeReqBody))
+	activeReq.Header.Set("Content-Type", "application/json")
+
+	activeResp, err := app.Test(activeReq, fiber.TestConfig{Timeout: 0})
+	require.NoError(t, err)
+	defer activeResp.Body.Close()
+
+	assert.Equal(t, fiber.StatusForbidden, activeResp.StatusCode)
+	errResp := decodeErrorResponse(t, activeResp.Body)
+	assert.Equal(t, runtimeerror.CodeForbidden, errResp.Error.Code)
+}

@@ -84,6 +84,12 @@ func TestService_CreateAccount_Success(t *testing.T) {
 	assert.Equal(t, RoleOwner, member.Role)
 	assert.Equal(t, owner.ID, member.UserID)
 	assert.Equal(t, account.ID, member.AccountID)
+
+	// owner should now have this account as active
+	updatedOwner, err := service.userRepository.GetUser(owner.ID)
+	require.NoError(t, err)
+	require.NotNil(t, updatedOwner.ActiveAccountID)
+	assert.Equal(t, account.ID, *updatedOwner.ActiveAccountID)
 }
 
 func TestService_CreateAccount_CustomSlug(t *testing.T) {
@@ -93,6 +99,35 @@ func TestService_CreateAccount_CustomSlug(t *testing.T) {
 	account, _, err := service.CreateAccount("My Workspace", "my-ws", owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "my-ws", account.Slug)
+}
+
+func TestService_SetActiveAccountForUser_Success(t *testing.T) {
+	service := setupServiceTest(t)
+	owner := seedVerifiedUser(t, "Henry", "henry@example.com")
+
+	account, _, err := service.CreateAccount("Henry Org", "", owner.ID)
+	require.NoError(t, err)
+
+	// Clear active account so we can explicitly set it again.
+	owner.ActiveAccountID = nil
+	require.NoError(t, database.DB.Save(owner).Error)
+
+	updatedUser, err := service.SetActiveAccountForUser(owner.ID, account.ID)
+	require.NoError(t, err)
+	require.NotNil(t, updatedUser.ActiveAccountID)
+	assert.Equal(t, account.ID, *updatedUser.ActiveAccountID)
+}
+
+func TestService_SetActiveAccountForUser_NotMember(t *testing.T) {
+	service := setupServiceTest(t)
+	owner := seedVerifiedUser(t, "Isaac", "isaac-owner@example.com")
+	otherUser := seedVerifiedUser(t, "Jess", "jess@example.com")
+
+	account, _, err := service.CreateAccount("Isaac Org", "", owner.ID)
+	require.NoError(t, err)
+
+	_, err = service.SetActiveAccountForUser(otherUser.ID, account.ID)
+	assert.ErrorIs(t, err, ErrMemberNotFound)
 }
 
 func TestService_CreateAccount_UnverifiedEmail(t *testing.T) {

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"log/slog"
 
-	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
-	"github.com/cloudflax/api.cloudflax/internal/user"
+	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
 	"github.com/cloudflax/api.cloudflax/internal/shared/validator"
+	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -63,6 +63,54 @@ func (h *Handler) CreateAccount(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": account})
+}
+
+// SetActiveAccount handles POST /accounts/active.
+// It marks the given account as the active account for the authenticated user.
+func (h *Handler) SetActiveAccount(c fiber.Ctx) error {
+	rctx, err := requestctx.UserOnly(c)
+	if err != nil {
+		return runtimeError.Respond(c, fiber.StatusUnauthorized, runtimeError.CodeUnauthorized, "Unauthorized")
+	}
+
+	var req SetActiveAccountRequest
+	if err := c.Bind().Body(&req); err != nil {
+		slog.Debug("set active account bind error", "error", err)
+		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
+	}
+
+	if err := validator.Validate(req); err != nil {
+		slog.Debug("set active account validation error", "error", err)
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return runtimeError.RespondWithDetails(
+				c, fiber.StatusUnprocessableEntity, runtimeError.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return runtimeError.Respond(c, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	_, err = h.service.SetActiveAccountForUser(rctx.UserID, req.AccountID)
+	if err != nil {
+		switch {
+		case errors.Is(err, user.ErrNotFound):
+			return runtimeError.Respond(c, fiber.StatusNotFound, runtimeError.CodeUserNotFound, "User not found")
+		case errors.Is(err, ErrNotFound):
+			return runtimeError.Respond(c, fiber.StatusNotFound, runtimeError.CodeAccountNotFound, "Account not found")
+		case errors.Is(err, ErrMemberNotFound):
+			return runtimeError.Respond(c, fiber.StatusForbidden, runtimeError.CodeForbidden, "Access denied: not a member of this account")
+		default:
+			slog.Error("set active account", "user_id", rctx.UserID, "account_id", req.AccountID, "error", err)
+			return runtimeError.Respond(c, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Failed to set active account")
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"data": fiber.Map{
+			"active_account_id": req.AccountID,
+		},
+	})
 }
 
 // toErrorDetails converts validator.ValidationErrors to runtimeError.ErrorDetail slice.

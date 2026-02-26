@@ -12,6 +12,7 @@ import (
 // UserRepository is the subset of the user repository the account service depends on.
 type UserRepository interface {
 	GetUser(id string) (*user.User, error)
+	Update(user *user.User) error
 }
 
 // Service handles account business logic.
@@ -76,7 +77,45 @@ func (s *Service) CreateAccount(name, slug, ownerUserID string) (*Account, *Acco
 		return nil, nil, fmt.Errorf("create owner member: %w", err)
 	}
 
+	// If the owner does not have an active account yet, set this one as active.
+	if u.ActiveAccountID == nil {
+		accountID := account.ID
+		u.ActiveAccountID = &accountID
+		if err := s.userRepository.Update(u); err != nil {
+			return nil, nil, fmt.Errorf("set active account for owner: %w", err)
+		}
+	}
+
 	return account, member, nil
+}
+
+// SetActiveAccountForUser marks the given account as the active account for the given user.
+// It validates UUID formats, ensures the account exists and that the user is a member of it.
+// Returns user.ErrNotFound when the user ID is invalid or the user does not exist,
+// ErrNotFound when the account does not exist and ErrMemberNotFound when the user is not a member.
+func (s *Service) SetActiveAccountForUser(userID, accountID string) (*user.User, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return nil, user.ErrNotFound
+	}
+	if _, err := uuid.Parse(accountID); err != nil {
+		return nil, ErrNotFound
+	}
+
+	if _, err := s.repository.GetMember(accountID, userID); err != nil {
+		return nil, err
+	}
+
+	u, err := s.userRepository.GetUser(userID)
+	if err != nil {
+		return nil, fmt.Errorf("lookup user: %w", err)
+	}
+
+	u.ActiveAccountID = &accountID
+	if err := s.userRepository.Update(u); err != nil {
+		return nil, fmt.Errorf("update active account: %w", err)
+	}
+
+	return u, nil
 }
 
 var (

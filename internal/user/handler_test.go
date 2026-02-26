@@ -77,6 +77,38 @@ func TestGetMeSuccess(test *testing.T) {
 	assert.Equal(test, testUser.ID, result.Data.ID)
 	assert.Equal(test, "Me User", result.Data.Name)
 	assert.Empty(test, result.Data.PasswordHash)
+	// GET /users/me is the only endpoint that returns active_account_id
+	assert.Nil(test, result.Data.ActiveAccountID, "new user has no active account")
+}
+
+// TestGetMeReturnsActiveAccountID ensures GET /users/me includes active_account_id when set.
+func TestGetMeReturnsActiveAccountID(test *testing.T) {
+	handler := SetupUserHandlerTest(test)
+
+	activeID := "a0b1c2d3-e4f5-6789-abcd-ef0123456789"
+	testUser := User{Name: "With Account", Email: "with-account@example.com", ActiveAccountID: &activeID}
+	require.NoError(test, testUser.SetPassword("secret123"))
+	require.NoError(test, database.DB.Create(&testUser).Error)
+
+	app := fiber.New()
+	app.Get("/users/me", func(c fiber.Ctx) error {
+		c.Locals("userID", testUser.ID)
+		return c.Next()
+	}, handler.GetMe)
+
+	req := httptest.NewRequest("GET", "/users/me", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data User `json:"data"`
+	}
+	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
+	require.NotNil(test, result.Data.ActiveAccountID)
+	assert.Equal(test, activeID, *result.Data.ActiveAccountID)
 }
 
 func TestGetMyAccountsSuccess(test *testing.T) {
