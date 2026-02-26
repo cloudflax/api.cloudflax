@@ -586,3 +586,37 @@ func TestResendVerificationUnknownEmail(test *testing.T) {
 
 	assert.Equal(test, fiber.StatusOK, resp.StatusCode, "unknown email must return 200 to prevent enumeration")
 }
+
+// --- DevGetVerificationToken ---
+
+// En: TestDevGetVerificationTokenSuccess tests that the dev endpoint returns a verification token.
+// Es: TestDevGetVerificationTokenSuccess prueba que el endpoint de desarrollo devuelve un token de verificación.
+func TestDevGetVerificationTokenSuccess(test *testing.T) {
+	handler, authService := SetupAuthHandlerTest(test)
+
+	_, tokenFromRegister, err := authService.Register("Dev User", "devuser@example.com", "password123")
+	require.NoError(test, err)
+	require.NotEmpty(test, tokenFromRegister)
+
+	app := fiber.New()
+	app.Post("/auth/dev/verify-email-token", handler.DevGetVerificationToken)
+
+	body := strings.NewReader(`{"email":"devuser@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/dev/verify-email-token", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
+	assert.NotEmpty(test, result.Data.Token)
+}
+

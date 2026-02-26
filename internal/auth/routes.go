@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"os"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -14,4 +16,9 @@ func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler)
 	auth.Post("/login", handler.Login)
 	auth.Post("/refresh", handler.Refresh)
 	auth.Post("/logout", authMiddleware, handler.Logout)
+
+	// Development-only helpers.
+	if os.Getenv("APP_ENV") == "localstack" {
+		auth.Post("/dev/verify-email-token", handler.DevGetVerificationToken)
+	}
 }

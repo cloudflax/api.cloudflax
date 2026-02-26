@@ -210,6 +210,46 @@ func (handler *Handler) ResendVerification(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "If the email exists, a verification link has been sent"})
 }
 
+// En: DevGetVerificationToken returns the current email verification token for a given email.
+//     This endpoint is intended for development environments only.
+// Es: DevGetVerificationToken devuelve el token de verificación de correo electrónico actual para un correo dado.
+//     Este endpoint está pensado solo para entornos de desarrollo.
+func (handler *Handler) DevGetVerificationToken(ctx fiber.Ctx) error {
+	var req ResendVerificationRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		slog.Debug("dev get verification token bind error", "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
+	}
+	if err := validator.Validate(req); err != nil {
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return runtimeError.RespondWithDetails(
+				ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	token, err := handler.service.ResendVerification(req.Email)
+	if err != nil {
+		if errors.Is(err, ErrEmailAlreadyVerified) {
+			return runtimeError.Respond(ctx, fiber.StatusConflict, runtimeError.CodeEmailAlreadyVerified, "Email is already verified")
+		}
+		if errors.Is(err, user.ErrNotFound) {
+			return runtimeError.Respond(ctx, fiber.StatusNotFound, runtimeError.CodeUserNotFound, "User not found")
+		}
+		slog.Error("dev get verification token", "email", req.Email, "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not generate verification token")
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"data": fiber.Map{
+			"token": token,
+		},
+	})
+}
+
 // En: toErrorDetails converts validator.ValidationErrors to runtimeError.ErrorDetail slice.
 // Es: toErrorDetails convierte validator.ValidationErrors en un slice de runtimeError.ErrorDetail.
 func toErrorDetails(validationErrors validator.ValidationErrors) []runtimeError.ErrorDetail {
