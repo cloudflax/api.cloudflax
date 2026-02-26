@@ -25,6 +25,15 @@ func NewService(repository *Repository, userRepository UserRepository) *Service 
 	return &Service{repository: repository, userRepository: userRepository}
 }
 
+// ListAccountsForUser returns all accounts where the given user is a member.
+// Returns user.ErrNotFound when the user ID is not a valid UUID.
+func (s *Service) ListAccountsForUser(userID string) ([]Account, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return nil, user.ErrNotFound
+	}
+	return s.repository.ListAccountsForUser(userID)
+}
+
 // CreateAccount creates a new account owned by the given user.
 // If slug is empty it is derived from name. Returns ErrUserEmailNotVerified when the
 // owner's email has not been verified, and ErrSlugTaken when the slug is already in use.

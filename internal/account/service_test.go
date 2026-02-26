@@ -37,6 +37,41 @@ func seedUnverifiedUser(t *testing.T, name, email string) *user.User {
 	return u
 }
 
+func TestService_ListAccountsForUser_Empty(t *testing.T) {
+	service := setupServiceTest(t)
+	owner := seedVerifiedUser(t, "Alice", "alice.list.empty@example.com")
+
+	accounts, err := service.ListAccountsForUser(owner.ID)
+	require.NoError(t, err)
+	assert.Len(t, accounts, 0)
+}
+
+func TestService_ListAccountsForUser_WithAccounts(t *testing.T) {
+	service := setupServiceTest(t)
+	owner := seedVerifiedUser(t, "Bob", "bob.list@example.com")
+
+	// create two accounts for the same owner
+	first, _, err := service.CreateAccount("First Org", "", owner.ID)
+	require.NoError(t, err)
+	second, _, err := service.CreateAccount("Second Org", "", owner.ID)
+	require.NoError(t, err)
+
+	accounts, err := service.ListAccountsForUser(owner.ID)
+	require.NoError(t, err)
+	assert.Len(t, accounts, 2)
+
+	ids := []string{accounts[0].ID, accounts[1].ID}
+	assert.Contains(t, ids, first.ID)
+	assert.Contains(t, ids, second.ID)
+}
+
+func TestService_ListAccountsForUser_InvalidUserID(t *testing.T) {
+	service := setupServiceTest(t)
+
+	_, err := service.ListAccountsForUser("not-a-uuid")
+	assert.Error(t, err)
+}
+
 func TestService_CreateAccount_Success(t *testing.T) {
 	service := setupServiceTest(t)
 	owner := seedVerifiedUser(t, "Alice", "alice@example.com")

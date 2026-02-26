@@ -93,3 +93,15 @@ func (r *Repository) ListMembers(accountID string) ([]AccountMember, error) {
 	}
 	return members, nil
 }
+
+// ListAccountsForUser returns all accounts where the given user is a member.
+func (r *Repository) ListAccountsForUser(userID string) ([]Account, error) {
+	var accounts []Account
+	if err := r.db.
+		Joins("JOIN account_members ON account_members.account_id = accounts.id").
+		Where("account_members.user_id = ?", userID).
+		Find(&accounts).Error; err != nil {
+		return nil, fmt.Errorf("list accounts for user: %w", err)
+	}
+	return accounts, nil
+}

@@ -10,16 +10,38 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// En: AccountSummary represents a lightweight view of an account associated to a user.
+// Es: AccountSummary representa una vista ligera de una cuenta asociada a un usuario.
+type AccountSummary struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+// En: AccountLister defines the dependency required to list accounts for a user.
+// Es: AccountLister define la dependencia necesaria para listar cuentas de un usuario.
+type AccountLister interface {
+	ListAccountsForUser(userID string) ([]AccountSummary, error)
+}
+
 // En: Handler handles HTTP requests for users.
 // Es: Handler maneja las peticiones HTTP de usuarios.
 type Handler struct {
-	service *Service
+	service       *Service
+	accountLister AccountLister
 }
 
 // En: NewHandler creates a new user handler.
 // Es: NewHandler crea un nuevo handler de usuario.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
+}
+
+// En: WithAccountLister sets the dependency used to list accounts for the authenticated user.
+// Es: WithAccountLister establece la dependencia usada para listar cuentas del usuario autenticado.
+func (handler *Handler) WithAccountLister(accountLister AccountLister) *Handler {
+	handler.accountLister = accountLister
+	return handler
 }
 
 // En: GetMe returns the authenticated user based on the userID stored in locals.
@@ -46,6 +68,39 @@ func (handler *Handler) GetMe(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(fiber.Map{"data": user})
+}
+
+// En: GetMyAccounts returns all accounts where the authenticated user is a member.
+// Es: GetMyAccounts devuelve todas las cuentas donde el usuario autenticado es miembro.
+func (handler *Handler) GetMyAccounts(ctx fiber.Ctx) error {
+	requestContext, err := requestctx.UserOnly(ctx)
+	if err != nil {
+		return runtimeError.Respond(
+			ctx, fiber.StatusUnauthorized, runtimeError.CodeUnauthorized, "Unauthorized",
+		)
+	}
+
+	if handler.accountLister == nil {
+		slog.Error("get my accounts called without configured account lister", "user_id", requestContext.UserID)
+		return runtimeError.Respond(
+			ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Failed to list accounts",
+		)
+	}
+
+	accounts, err := handler.accountLister.ListAccountsForUser(requestContext.UserID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return runtimeError.Respond(
+				ctx, fiber.StatusNotFound, runtimeError.CodeUserNotFound, "User not found",
+			)
+		}
+		slog.Error("get my accounts", "user_id", requestContext.UserID, "error", err)
+		return runtimeError.Respond(
+			ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Failed to list accounts",
+		)
+	}
+
+	return ctx.JSON(fiber.Map{"data": accounts})
 }
 
 // En: UpdateMe updates the authenticated user's own profile.

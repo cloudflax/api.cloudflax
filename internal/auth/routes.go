@@ -18,7 +18,8 @@ func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler)
 	auth.Post("/logout", authMiddleware, handler.Logout)
 
 	// Development-only helpers.
-	if os.Getenv("APP_ENV") == "localstack" {
+	// Mounted in non-production environments (e.g. localstack).
+	if os.Getenv("APP_ENV") != "production" {
 		auth.Post("/dev/verify-email-token", handler.DevGetVerificationToken)
 	}
 }

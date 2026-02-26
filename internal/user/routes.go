@@ -9,6 +9,7 @@ import (
 func Routes(router fiber.Router, handler *Handler, authMiddleware fiber.Handler) {
 	//router.Post("/users", authMiddleware, handler.CreateUser)
 	router.Get("/users/me", authMiddleware, handler.GetMe)
+	router.Get("/users/me/accounts", authMiddleware, handler.GetMyAccounts)
 	router.Put("/users/me", authMiddleware, handler.UpdateMe)
 	router.Delete("/users/me", authMiddleware, handler.DeleteMe)
 }

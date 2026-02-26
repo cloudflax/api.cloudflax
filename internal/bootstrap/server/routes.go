@@ -24,17 +24,18 @@ func Mount(app *fiber.App, cfg *config.Config) {
 
 	authRepository := auth.NewRepository(database.DB)
 	userRepository := user.NewRepository(database.DB)
+	accountRepository := account.NewRepository(database.DB)
+	accountService := account.NewService(accountRepository, userRepository)
+
 	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender, cfg.AppURL)
 	authHandler := auth.NewHandler(authService)
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)
 
 	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService).WithAccountLister(&accountListerAdapter{service: accountService})
 	user.Routes(app, userHandler, requireAuth)
 
-	accountRepository := account.NewRepository(database.DB)
-	accountService := account.NewService(accountRepository, userRepository)
 	accountHandler := account.NewHandler(accountService)
 	requireAccountMember := middleware.RequireAccountMember(accountRepository)
 	account.Routes(app, accountHandler, requireAuth)
@@ -43,6 +44,28 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	invoiceService := invoice.NewService(invoiceRepository)
 	invoiceHandler := invoice.NewHandler(invoiceService)
 	invoice.Routes(app, invoiceHandler, requireAuth, requireAccountMember)
+}
+
+// accountListerAdapter adapts the account.Service to the user.AccountLister interface.
+type accountListerAdapter struct {
+	service *account.Service
+}
+
+func (a *accountListerAdapter) ListAccountsForUser(userID string) ([]user.AccountSummary, error) {
+	accounts, err := a.service.ListAccountsForUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]user.AccountSummary, len(accounts))
+	for i, acc := range accounts {
+		result[i] = user.AccountSummary{
+			ID:   acc.ID,
+			Name: acc.Name,
+			Slug: acc.Slug,
+		}
+	}
+	return result, nil
 }
 
 // newEmailSender builds an SES-backed TemplatedSender from the loaded config.

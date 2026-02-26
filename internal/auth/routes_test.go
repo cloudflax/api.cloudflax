@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,14 +12,17 @@ import (
 )
 
 // En: TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack verifies that the dev route
-//     is only available when APP_ENV=localstack.
+// is only available when APP_ENV=localstack.
 // Es: TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack verifica que la ruta de
-//     desarrollo solo esté disponible cuando APP_ENV=localstack.
+// desarrollo solo esté disponible cuando APP_ENV=localstack.
 func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
-	test.Setenv("APP_ENV", "localstack")
+	require.NoError(test, os.Setenv("APP_ENV", "localstack"))
 
 	app := fiber.New()
-	handler, _ := SetupAuthHandlerTest(test)
+	handler, authService := SetupAuthHandlerTest(test)
+
+	_, _, err := authService.Register("Dev User", "dev@example.com", "password123")
+	require.NoError(test, err)
 
 	Routes(app, handler, func(c fiber.Ctx) error { return c.Next() })
 
@@ -28,7 +32,7 @@ func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
 	require.NoError(test, err)
 	assert.NotEqual(test, fiber.StatusNotFound, resp.StatusCode, "route must be reachable when APP_ENV=localstack")
 
-	test.Setenv("APP_ENV", "production")
+	require.NoError(test, os.Setenv("APP_ENV", "production"))
 
 	app2 := fiber.New()
 	handler2, _ := SetupAuthHandlerTest(test)
@@ -41,4 +45,3 @@ func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
 	require.NoError(test, err)
 	assert.Equal(test, fiber.StatusNotFound, resp2.StatusCode, "route must not exist when APP_ENV!=localstack")
 }
-

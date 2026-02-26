@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,15 @@ func SetupUserHandlerTest(test *testing.T) *Handler {
 	repository := NewRepository(database.DB)
 	service := NewService(repository)
 	return NewHandler(service)
+}
+
+type stubAccountLister struct {
+	accounts []AccountSummary
+	err      error
+}
+
+func (s *stubAccountLister) ListAccountsForUser(userID string) ([]AccountSummary, error) {
+	return s.accounts, s.err
 }
 
 // DecodeErrorResponse reads the response body and decodes it into an ErrorResponse.
@@ -67,6 +77,112 @@ func TestGetMeSuccess(test *testing.T) {
 	assert.Equal(test, testUser.ID, result.Data.ID)
 	assert.Equal(test, "Me User", result.Data.Name)
 	assert.Empty(test, result.Data.PasswordHash)
+}
+
+func TestGetMyAccountsSuccess(test *testing.T) {
+	repository := NewRepository(database.DB)
+	service := NewService(repository)
+
+	stub := &stubAccountLister{
+		accounts: []AccountSummary{
+			{ID: "acc-1", Name: "First", Slug: "first"},
+			{ID: "acc-2", Name: "Second", Slug: "second"},
+		},
+	}
+	handler := NewHandler(service).WithAccountLister(stub)
+
+	testUser := User{Name: "Me User", Email: "me.accounts@example.com"}
+	require.NoError(test, testUser.SetPassword("secret123"))
+	require.NoError(test, database.DB.Create(&testUser).Error)
+
+	app := fiber.New()
+	app.Get("/users/me/accounts", func(c fiber.Ctx) error {
+		c.Locals("userID", testUser.ID)
+		return c.Next()
+	}, handler.GetMyAccounts)
+
+	req := httptest.NewRequest("GET", "/users/me/accounts", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusOK, resp.StatusCode)
+
+	var result struct {
+		Data []AccountSummary `json:"data"`
+	}
+	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Len(test, result.Data, 2)
+	assert.Equal(test, "First", result.Data[0].Name)
+}
+
+func TestGetMyAccountsUnauthorized(test *testing.T) {
+	repository := NewRepository(database.DB)
+	service := NewService(repository)
+	handler := NewHandler(service).WithAccountLister(&stubAccountLister{})
+
+	app := fiber.New()
+	app.Get("/users/me/accounts", handler.GetMyAccounts)
+
+	req := httptest.NewRequest("GET", "/users/me/accounts", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusUnauthorized, resp.StatusCode)
+
+	errorResponse := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeUnauthorized, errorResponse.Error.Code)
+}
+
+func TestGetMyAccountsUserNotFound(test *testing.T) {
+	repository := NewRepository(database.DB)
+	service := NewService(repository)
+	stub := &stubAccountLister{
+		err: ErrNotFound,
+	}
+	handler := NewHandler(service).WithAccountLister(stub)
+
+	app := fiber.New()
+	app.Get("/users/me/accounts", func(c fiber.Ctx) error {
+		c.Locals("userID", "00000000-0000-0000-0000-000000000000")
+		return c.Next()
+	}, handler.GetMyAccounts)
+
+	req := httptest.NewRequest("GET", "/users/me/accounts", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusNotFound, resp.StatusCode)
+
+	errorResponse := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeUserNotFound, errorResponse.Error.Code)
+}
+
+func TestGetMyAccountsInternalError(test *testing.T) {
+	repository := NewRepository(database.DB)
+	service := NewService(repository)
+	stub := &stubAccountLister{
+		err: errors.New("boom"),
+	}
+	handler := NewHandler(service).WithAccountLister(stub)
+
+	app := fiber.New()
+	app.Get("/users/me/accounts", func(c fiber.Ctx) error {
+		c.Locals("userID", "00000000-0000-0000-0000-000000000000")
+		return c.Next()
+	}, handler.GetMyAccounts)
+
+	req := httptest.NewRequest("GET", "/users/me/accounts", nil)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusInternalServerError, resp.StatusCode)
+
+	errorResponse := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeInternalServerError, errorResponse.Error.Code)
 }
 
 // TestGetMeUnauthorized tests that unauthenticated requests are rejected.
