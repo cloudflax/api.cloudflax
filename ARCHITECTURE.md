@@ -1,156 +1,61 @@
-# Arquitectura — Cloudflax API
+# Arquitectura — Cloudflax API (Backend)
 
-Documentación de la estructura y patrones del proyecto. En este archivo van:
-
-- **Estructura del proyecto** — Enfoque feature-driven, layout de carpetas y archivos por feature.
-- **Patrones utilizados** — Repository, Service, DTO, etc.
-- **Capas del sistema** — Handler, Service, Repository y sus responsabilidades.
-- **Flujo de responsabilidades** — Cómo fluyen los datos entre capas.
-- **Qué puede y qué no puede tocar cada capa** — Reglas de dependencia.
+Documentación de la estructura, patrones y flujo de datos del backend.
 
 ---
 
-## Enfoque: Feature-driven + Shared Kernel
+## 1. Stack Tecnológico
 
-Cada feature (user, product, order, etc.) vive en su propia carpeta con todos sus archivos. El código común se centraliza en `shared/`.
-
----
-
-## Estructura objetivo
-
-```
-internal/
-├── bootstrap/          # Arranque y configuración de la aplicación
-│   ├── app/            # Creación del Fiber app, Run()
-│   ├── config/         # Carga de configuración (env, secrets)
-│   └── server/         # Router principal, Mount(), handlers raíz (/health, /)
-│
-├── user/
-│   ├── handler.go      # HTTP, Fiber, request/response
-│   ├── service.go      # Lógica de negocio
-│   ├── repository.go   # Acceso a DB
-│   ├── model.go        # Modelo User
-│   ├── validator.go    # Validaciones del user
-│   ├── dto.go          # Requests / responses
-│   └── routes.go       # Endpoints del user
-│
-├── product/            # Ejemplo: feature más simple
-│   ├── handler.go
-│   ├── service.go
-│   ├── repository.go
-│   ├── model.go
-│   └── routes.go
-│
-└── shared/
-    ├── database/       # Conexión, migraciones
-    ├── jsonapi/        # Formato JSON API (si aplica)
-    ├── pagination/     # Lógica de paginación
-    ├── filtering/      # Filtros genéricos
-    ├── errors/         # Errores y respuestas HTTP
-    └── validator/      # Validaciones comunes (struct tags, helpers)
-```
+- **Lenguaje**: Go (Estructura feature-driven).
+- **Framework**: Fiber v3.
+- **ORM**: GORM con PostgreSQL.
+- **Testing**: Unitarios y de integración con PostgreSQL/SQLite.
 
 ---
 
-## Archivos por feature
+## 2. Estructura de Directorios (Feature-driven)
 
-| Archivo | Responsabilidad |
-|---------|-----------------|
-| `handler.go` | HTTP, Fiber, parsear request, formatear response |
-| `service.go` | Lógica de negocio, orquestación |
-| `repository.go` | Acceso a DB (GORM), queries |
-| `model.go` | Modelo de dominio (GORM) |
-| `validator.go` | Validaciones específicas del recurso |
-| `dto.go` | Request/Response DTOs |
-| `routes.go` | Definición de endpoints del recurso |
+Cada funcionalidad vive en su propia carpeta dentro de `internal/`:
 
-No todos los features requieren todos los archivos. Por ejemplo, un recurso simple puede tener solo `handler`, `repository`, `model` y `routes`.
+- **`internal/bootstrap/`**: Configuración, servidor y arranque de la app.
+- **`internal/{feature}/`**: Puede contener `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go` y opcionalmente `validator.go` u otros helpers específicos del recurso.
+- **`internal/shared/`**: Código común: `database` (conexión y migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator` y otras utilidades compartidas.
+
+No todos los features requieren todos estos archivos; un recurso simple puede usar solo `handler.go`, `repository.go`, `model.go` y `routes.go`.
 
 ---
 
-## Patrones utilizados
+## 3. Patrones y Capas del Sistema
 
-(Patrones de diseño y arquitectura que aplicamos en el proyecto.)
-
-| Patrón | Uso |
-|--------|-----|
-| **Repository** | Abstracción del acceso a datos en cada feature |
-| **Service** | Lógica de negocio, orquestación entre repositorios |
-| **DTO** | Request/Response separados del modelo de dominio |
-| **Validator** | Validación de entrada antes de llegar al service |
-
----
-
-## Capas
-
-| Capa | Responsabilidad |
-|------|-----------------|
-| **Handler** | Solo HTTP: parsear request, llamar al service, formatear response. Sin lógica de negocio. |
-| **Service** | Reglas de negocio, validaciones, orquestación. |
-| **Repository** | Acceso a base de datos (GORM), queries. |
-
-```
-Handler → Service → Repository
-```
+- **Flujo de Datos**: `Request → Middleware → Handler → Service → Repository → DB`.
+- **Responsabilidades**:
+  - **Handler**: Solo HTTP (Fiber); parseo de requests y formateo de respuestas.
+  - **Service**: Lógica de negocio y orquestación; independiente de HTTP.
+  - **Repository**: Abstracción de acceso a datos (GORM).
+- **Validación**: Uso de DTOs y lógica de validación previa al Service.
+- **Reglas de dependencia entre capas**:
+  - **Handler**: No debe contener lógica de negocio ni acceder directamente a la base de datos; siempre delega en el Service.
+  - **Service**: No debe depender de HTTP (ni Fiber ni códigos de estado); trabaja con modelos de dominio y errores de dominio.
+  - **Repository**: No debe construir respuestas HTTP; solo se encarga del acceso a datos y de devolver errores de DB o de dominio.
 
 ---
 
-## Reglas (qué puede y qué no puede cada capa)
+## 4. Manejo de Errores y Seguridad
 
-- **Handler:** debe delegar al service. No debe contener lógica de negocio.
-- **Service:** no debe depender de HTTP (no Fiber, no status codes). Usa errores de dominio.
-- **Repository:** no debe devolver errores HTTP. Solo errores de DB o de dominio.
-
----
-
-## Flujo de datos
-
-```
-Request → Middleware → Handler → Service → Repository → DB
-                                 ↓
-Response ← Handler ← Service ← Repository
-```
+- **Errores**: Service/Repository devuelven errores de dominio (por ejemplo `ErrNotFound`, `ErrDuplicateEmail`); el Handler captura estos errores, los mapea a códigos HTTP coherentes y formatea la respuesta JSON.
+- **Restricción**: Ni Service ni Repository deben crear respuestas HTTP ni depender de Fiber; solo el Handler conoce detalles de transporte.
+- **Middleware Stack**: Logger → Request ID → Recovery → CORS → Auth (JWT).
+  - **Logger**: Registra método, path, status y duración de cada request.
+  - **Request ID**: Asigna y propaga un identificador (`X-Request-ID`) para facilitar el tracing entre logs.
+  - **Recovery**: Captura `panic` y evita la caída del servidor, devolviendo un error 500 controlado.
+  - **CORS**: Configura los encabezados para permitir el consumo desde el frontend autorizado.
+  - **Auth**: Valida JWT y restringe el acceso a rutas protegidas según la configuración de autorización.
 
 ---
 
-## Middleware stack
+## 5. Workflow del Desarrollador
 
-Orden de ejecución (de fuera hacia dentro):
-
-1. **Logger** — Registra request, método, path, duración
-2. **Request ID** — Añade `X-Request-ID` para tracing
-3. **Recovery** — Panic recovery, evita caída del servidor
-4. **CORS** — Headers para consumo desde frontend
-5. **Auth** — Validación JWT en rutas protegidas (solo donde aplique)
-
----
-
-## Manejo de errores
-
-- **Service/Repository:** Devuelven errores de dominio (p. ej. `ErrNotFound`, `ErrDuplicateEmail`).
-- **Handler:** Captura errores del service, mapea a códigos HTTP y formatea la respuesta.
-- **shared/errors:** Errores comunes y helpers para respuestas HTTP consistentes (futuro).
-
----
-
-## Rutas
-
-- **bootstrap/server/routes.go:** Monta las rutas de cada feature (`user.Routes()`, `product.Routes()`, etc.)
-- **Públicas:** `/`, `/health`, `/auth/login`
-- **Protegidas:** `/users`, `/users/:id`, `/users/me`
-- **Prefijo (futuro):** `/api/v1/` para versionado
-
----
-
-## Estrategia de testing
-
-- **Unit tests:** Handler, Service, Repository por separado. Usar mocks para dependencias.
-- **Integration tests:** Flujo completo con DB real (PostgreSQL) o SQLite in-memory para tests rápidos.
-- **Ubicación:** `*_test.go` junto al archivo bajo test.
-- **DB en tests:** `internal/db/testing.go` provee helpers para tests con SQLite o PostgreSQL.
-
----
-
-## Migración
-
-La estructura ha sido migrada a feature-driven. El módulo `user` usa la nueva estructura. La capa de arranque (app, config, server) vive en `internal/bootstrap/`. `shared/database` y `shared/middleware` centralizan código común.
+1. **Implementar**: Seguir el flujo de capas definido y registrar rutas en `bootstrap/server/routes.go`.
+2. **Migrar**: Registrar cambios de modelos en `database.RunMigrations()`.
+3. **Validar**: Ejecución obligatoria de `make lint` y `make test`.
+4. **Testear**: Añadir tests unitarios por capa (Handler, Service, Repository) y tests de integración con base de datos (PostgreSQL o SQLite in-memory), ubicando los archivos `*_test.go` junto al código del feature.

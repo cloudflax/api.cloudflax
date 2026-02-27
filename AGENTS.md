@@ -1,4 +1,4 @@
-## Agents — Cloudflax (Backend)
+## Agents — Cloudflax API (Backend)
 
 Este documento establece las directrices operativas que deben seguir los agentes de Cursor para garantizar la robustez, seguridad y escalabilidad de la API de Cloudflax.
 
