@@ -1,4 +1,4 @@
-# Arquitectura — Cloudflax API (Backend)
+# Architecture — Cloudflax API (Backend)
 
 Documentación de la estructura, patrones y flujo de datos del backend.
 
