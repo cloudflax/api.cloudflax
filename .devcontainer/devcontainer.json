@@ -1,6 +1,6 @@
 {
   "name": "Cloudflax Backend",
-  "dockerComposeFile": "../docker-compose.yml",
+  "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "runServices": ["app"],
   "workspaceFolder": "/app",

@@ -1,12 +1,16 @@
+name: apicloudflax
+
 services:
   app:
+    container_name: apicloudflax-app
+    image: apicloudflax-app
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      - ..:/app
       - go-mod-cache:/go/pkg/mod
     environment:
       - APP_ENV=localstack
@@ -27,3 +31,8 @@ services:
 
 volumes:
   go-mod-cache:
+    name: apicloudflax-app-cache
+
+networks:
+  default:
+    name: apicloudflax
