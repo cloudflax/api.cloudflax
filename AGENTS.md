@@ -1,85 +1,68 @@
-# Cloudflax API — Instrucciones para el agente
+## AGENTS — Cloudflax API
 
-Este archivo guía al agente de IA con el contexto y las instrucciones del proyecto.
+Este documento establece las directrices operativas que deben seguir los agentes de Cursor. El objetivo es garantizar la consistencia arquitectónica, la calidad del código y la velocidad de entrega en todo el ecosistema de Cloudflax.
 
 ---
 
 ## Entorno de desarrollo
 
-- **Devcontainer:** El proyecto se ejecuta dentro de un devcontainer. Asume que estás en `/app`.
-- **Comandos:** Usa el Makefile para las operaciones habituales.
-
-```bash
-make build      # Compilar
-make test       # Ejecutar tests
-make test-cover # Tests con cobertura (genera coverage.html)
-make lint       # Linter (golangci-lint)
-```
+- **Devcontainer:** El proyecto se ejecuta dentro de un devcontainer. Asume siempre que la ruta de trabajo es `/app`.
+- **Operaciones:** Utiliza el `Makefile` para las tareas estándar del ciclo de vida:
+  - `make build`: Compilar la aplicación.
+  - `make test`: Ejecutar la suite de pruebas.
+  - `make test-cover`: Generar reporte de cobertura (`coverage.html`).
+  - `make lint`: Ejecutar el linter (`golangci-lint`).
 
 ---
 
-## Antes de commit
+## Estándares de Calidad (Antes de Commit)
 
-- Ejecutar `make lint` y `make test` antes de hacer commit.
-- Los tests deben pasar.
-- El pre-commit hook ya ejecuta `make lint` automáticamente.
-
----
-
-## Convenciones generales
-
-- **Clean code y buenas prácticas:** Siempre aplicar en el código que escribas.
-- **Idioma:** Todo el código fuente en inglés (nombres, variables, comentarios, mensajes de error, logs). La única comunicación en español será el chat con el usuario.
-- **Tests:** Añadir o actualizar tests para el código que modifiques o crees.
-- **Imports:** Ordenar: estándar → terceros → internal. Agrupar con líneas en blanco.
-- **Errores:** Usar `fmt.Errorf` con `%w` para envolver errores. No ignorar errores con `_`.
-- **Logging:** Usar slog para errores y eventos relevantes. No loguear datos sensibles (passwords, tokens).
-- **Funciones:** Máximo ~50 líneas. Si crece, extraer. Evitar más de 3–4 parámetros.
-- **Constantes:** Preferir constantes sobre magic numbers o strings literales repetidos.
+Para asegurar la integridad del repositorio, el agente debe:
+- Ejecutar obligatoriamente `make lint` y `make test` antes de proponer cambios.
+- Confirmar que todos los tests pasen con éxito.
+- Recordar que el *pre-commit hook* automatizado ya incluye la ejecución de `make lint`.
 
 ---
 
-## Cuándo consultar cada archivo
+## Convenciones Generales de Código
 
-| Situación | Archivo |
-|-----------|---------|
-| Añadir/modificar un feature, entender capas o flujo | ARCHITECTURE.md |
-| Nombrar funciones, archivos, variables | CONVENTIONS.md |
-| Saber qué falta por hacer | SETUP_PROGRESS.md |
-| Capacidades y stack del proyecto | SKILLS.md |
-| Información general del proyecto | README.md |
-
----
-
-## Workflow para añadir un feature nuevo
-
-1. **Crear carpeta** — `internal/{recurso}/` (singular, lowercase).
-2. **Archivos mínimos** — `model.go`, `repository.go`, `service.go`, `handler.go`, `routes.go`.
-3. **Nombres CRUD** — `List{Resource}`, `Get{Resource}`, `Create{Resource}`, etc. (ver CONVENTIONS.md).
-4. **Registrar rutas** — En `internal/bootstrap/server/routes.go` montar `{recurso}.Routes()`.
-5. **Tests** — Añadir tests para handler, service y repository.
-6. **Migraciones** — Si hay modelos nuevos, registrarlos en `database.RunMigrations()` en `cmd/api/main.go`.
+- **Idioma:** El código fuente (nombres, variables, comentarios, logs y errores) debe ser estrictamente en **inglés**. La comunicación con el usuario se mantiene en español.
+- **Gestión de Errores:** Usa `fmt.Errorf` con el verbo `%w` para el wrapping de errores. Nunca ignores errores con `_`.
+- **Observabilidad:** Utiliza `slog` para el registro de eventos. Queda prohibido loguear datos sensibles como passwords o tokens.
+- **Estructura de Funciones:** Mantén funciones concisas (máximo ~50 líneas) y limita los parámetros a 3 o 4 por firma.
+- **Imports:** Ordena los paquetes por bloques: 1) Estándar, 2) Terceros, 3) Internos.
+- **Constantes:** Evita los "magic numbers"; usa constantes descriptivas para valores repetidos.
 
 ---
 
-## Referencias
+## Guía de Consulta Rápida
 
-- **ARCHITECTURE.md**
-  - Estructura del proyecto, patrón por capas y organización por recurso.
-  - Consultar al diseñar o añadir nuevos recursos.
-- **CONVENTIONS.md**
-  - Nombres, estilo de código y patrones de naming.
-  - Consultar al escribir código.
-- **SETUP_PROGRESS.md**
-  - Estado actual del proyecto y lista de tareas pendientes.
-  - Consultar antes de empezar una tarea nueva.
-- **README.md**
-  - Información general del proyecto y estructura.
-- **SKILLS.md**
-  - Capacidades del agente, del equipo y tecnologías del stack.
+| Si necesitas... | Consulta el archivo... |
+| :--- | :--- |
+| Entender capas, flujo o añadir un feature | `ARCHITECTURE.md` |
+| Reglas de naming para funciones o variables | `CONVENTIONS.md` |
+| Conocer las tareas pendientes | `SETUP_PROGRESS.md` |
+| Revisar el stack y capacidades del agente | `SKILLS.md` |
+| Obtener información general o estructura | `README.md` |
 
 ---
 
-## Stack
+## Workflow: Implementación de Features
 
-- **Go 1.25** | **Fiber v3** | **GORM** | **PostgreSQL** | **slog**
+Para añadir una nueva funcionalidad, sigue este orden estricto:
+1. **Directorio:** Crea `internal/{recurso}/` en singular y minúsculas.
+2. **Componentes:** Define como mínimo `model.go`, `repository.go`, `service.go`, `handler.go` y `routes.go`.
+3. **Naming CRUD:** Usa el formato `List{Resource}`, `Get{Resource}`, `Create{Resource}`.
+4. **Rutas:** Registra el recurso llamando a `{recurso}.Routes()` en `internal/bootstrap/server/routes.go`.
+5. **Persistencia:** Si hay cambios en modelos, registra las migraciones en `database.RunMigrations()` dentro de `cmd/api/main.go`.
+6. **Validación:** Añade tests unitarios y de integración para cada capa modificada.
+
+---
+
+## Stack Tecnológico Core
+
+- **Lenguaje:** Go 1.25
+- **Web Framework:** Fiber v3
+- **ORM:** GORM
+- **Base de Datos:** PostgreSQL
+- **Logging:** slog
