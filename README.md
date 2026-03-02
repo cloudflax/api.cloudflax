@@ -92,46 +92,46 @@ En Docker, las variables se configuran en `docker-compose.yml`. Las variables se
 | `DB_SSL_MODE` | Modo SSL: `require`, `verify-ca`, `verify-full`, `disable` | `disable` |
 | `LOG_LEVEL`   | Nivel de log: `DEBUG`, `info`, `WARN`, `ERROR`            | `info`    |
 
-#### 3.1 Configuración con AWS Secrets Manager (LocalStack)
+#### 3.1 Configuración con AWS Secrets Manager (moto / entorno simulado)
 
-Si usas **LocalStack** con Secrets Manager, puedes cargar las credenciales de la base de datos desde un secreto en lugar de variables de entorno. El secreto debe ser un JSON con: `dbname`, `host`, `password`, `port`, `username`.
+Si usas **moto** (u otro endpoint local compatible con AWS) con Secrets Manager, puedes cargar las credenciales de la base de datos desde un secreto en lugar de variables de entorno. El secreto debe ser un JSON con: `dbname`, `host`, `password`, `port`, `username`.
 
-1. Define en LocalStack un secreto (por ejemplo `db/cloudflax`) con el JSON de credenciales.
+1. Define en el servicio simulado (por ejemplo, moto server) un secreto (por ejemplo `db/cloudflax`) con el JSON de credenciales.
 2. En `docker-compose` o en el entorno, configura:
    - `CONFIG_SOURCE=secrets`
-   - `AWS_ENDPOINT_URL=http://localhost.localstack.cloud:4566` (o `http://host.docker.internal:4566` si LocalStack corre en tu máquina y la app en Docker)
+   - `AWS_ENDPOINT_URL=http://host.docker.internal:5000` (o la URL donde expongas tu instancia de moto/endpoint simulado)
    - `AWS_REGION=us-east-1`
    - `AWS_SECRET_NAME=db/cloudflax`
-   - `AWS_ACCESS_KEY_ID=test` y `AWS_SECRET_ACCESS_KEY=test` (LocalStack acepta credenciales de prueba).
+   - `AWS_ACCESS_KEY_ID=test` y `AWS_SECRET_ACCESS_KEY=test` (el endpoint simulado acepta credenciales de prueba).
 
 La aplicación cargará el secreto **solo al arranque** y usará esos valores para la conexión a la base de datos. El resto de la configuración (`PORT`, `LOG_LEVEL`) sigue leyéndose de variables de entorno.
 
-#### 3.2 Ver correos enviados por SES en LocalStack
+#### 3.2 Ver correos enviados por SES en un entorno simulado (moto)
 
-LocalStack no entrega correos reales; los guarda en memoria. Para inspeccionar los emails enviados (p. ej. verificación de cuenta):
+Un entorno simulado como **moto** no entrega correos reales; solo guarda los mensajes en memoria o los expone mediante endpoints internos. Para inspeccionar los emails enviados (p. ej. verificación de cuenta), puedes apoyarte en los endpoints de introspección que exponga tu servidor.
 
-**Requisito previo:** En LocalStack hay que **verificar la identidad del remitente** (el `SES_FROM_ADDRESS`) antes de que los envíos se acepten. Si no lo haces, los correos no se guardan y el registro puede fallar al enviar el email.
+**Requisito previo:** En el entorno simulado hay que **verificar la identidad del remitente** (el `SES_FROM_ADDRESS`) antes de que los envíos se acepten. Si no lo haces, los correos no se guardan y el registro puede fallar al enviar el email.
 
 ```bash
-# En la máquina donde corre LocalStack (puerto 4566), verificar la identidad una vez:
-AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://localhost:4566 sesv2 create-email-identity --email-identity jose.guerrero@cloudflax.com --region us-east-1
+# En la máquina donde corre tu servidor simulado (por ejemplo, moto en el puerto 5000), verificar la identidad una vez:
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://localhost:5000 sesv2 create-email-identity --email-identity noreply@dev.cloudflax.com --region us-east-1
 ```
 
-Luego, para listar los correos enviados:
+Luego, para listar los correos enviados (si tu servidor expone un endpoint de introspección compatible):
 
-- **Desde la máquina donde corre LocalStack** (puerto 4566):
+- **Desde la máquina donde corre el servidor simulado** (puerto 5000):
   ```bash
-  curl -s "http://localhost:4566/_aws/ses" | jq .
+  curl -s "http://localhost:5000/_aws/ses" | jq .
   ```
-- **Desde el DevContainer** (LocalStack en el host):
+- **Desde el DevContainer** (servidor simulado en el host):
   ```bash
-  curl -s "http://host.docker.internal:4566/_aws/ses" | jq .
+  curl -s "http://host.docker.internal:5000/_aws/ses" | jq .
   ```
 - Opcional: filtrar por remitente con `?email=tu-ses-from@ejemplo.com`.
 
 La respuesta incluye `Subject`, `Body` (text/html), `Destination`, `Source` y `Timestamp` de cada mensaje.
 
-**Si `messages` sale vacío:** (1) Comprueba que ejecutaste la verificación de identidad arriba antes de registrar. (2) Prueba sin filtro: `curl -s "http://localhost:4566/_aws/ses" | jq .` para ver todos los mensajes. (3) Revisa los logs de la app al arrancar por si aparece "failed to initialise SES sender" (entonces se usa noop y no se envía nada).
+**Si `messages` sale vacío:** (1) Comprueba que ejecutaste la verificación de identidad arriba antes de registrar. (2) Prueba sin filtro: `curl -s "http://localhost:5000/_aws/ses" | jq .` para ver todos los mensajes. (3) Revisa los logs de la app al arrancar por si aparece "failed to initialise SES sender" (entonces se usa noop y no se envía nada).
 
 ### 4. Comandos (dentro del DevContainer)
 

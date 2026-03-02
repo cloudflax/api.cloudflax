@@ -323,14 +323,14 @@ func TestCreateUserDuplicateEmail(test *testing.T) {
 func TestCreateUserDuplicateEmailDifferentName(test *testing.T) {
 	handler := SetupUserHandlerTest(test)
 
-	existingUser := User{Name: "Jose Guerrero", Email: "jose.guerrero@cloudflax.com"}
+	existingUser := User{Name: "Jose Guerrero", Email: "noreply@dev.cloudflax.com"}
 	require.NoError(test, existingUser.SetPassword("secret123"))
 	require.NoError(test, database.DB.Create(&existingUser).Error)
 
 	app := fiber.New()
 	app.Post("/users", handler.CreateUser)
 
-	body := strings.NewReader(`{"name":"José Guerrero","email":"jose.guerrero@cloudflax.com","password":"123456789"}`)
+	body := strings.NewReader(`{"name":"José Guerrero","email":"noreply@dev.cloudflax.com","password":"123456789"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	req.Header.Set("Content-Type", "application/json")
 

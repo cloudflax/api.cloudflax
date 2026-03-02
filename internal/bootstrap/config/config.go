@@ -40,7 +40,7 @@ var (
 )
 
 // Load loads the configuration. DB credentials always come from AWS Secrets Manager
-// (e.g. LocalStack). Server settings (PORT, LOG_LEVEL) and DB_SSL_MODE always come
+// (e.g. a local AWS-compatible endpoint such as moto). Server settings (PORT, LOG_LEVEL) and DB_SSL_MODE always come
 // from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{
@@ -77,7 +77,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// loadDBConfigFromSecrets fetches DB credentials from AWS Secrets Manager (e.g. LocalStack) at startup.
+// loadDBConfigFromSecrets fetches DB credentials from AWS Secrets Manager (e.g. a local AWS-compatible endpoint such as moto) at startup.
 // secretName is the name or ARN of the secret in Secrets Manager (provided by the deployer).
 func loadDBConfigFromSecrets(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {
 	dbSecretsOnce.Do(func() {
@@ -145,16 +145,11 @@ func getEnvInt(key string, defaultVal int) int {
 }
 
 // awsEndpointURL resolves the AWS endpoint URL. It reads AWS_ENDPOINT_URL
-// first. When APP_ENV=localstack and no explicit URL is set, it falls back to
-// LOCALSTACK_ENDPOINT (required in that environment).
+// first and returns it when set. In local development, this can point to a
+// moto server or any other AWS-compatible endpoint.
 func awsEndpointURL() string {
 	if v := os.Getenv("AWS_ENDPOINT_URL"); v != "" {
 		return v
 	}
-
-	if getEnv("APP_ENV", "") == "localstack" {
-		return getEnv("LOCALSTACK_ENDPOINT", "")
-	}
-
 	return ""
 }

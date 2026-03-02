@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// En: TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack verifies that the dev route
-// is only available when APP_ENV=localstack.
-// Es: TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack verifica que la ruta de
-// desarrollo solo esté disponible cuando APP_ENV=localstack.
-func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
-	require.NoError(test, os.Setenv("APP_ENV", "localstack"))
+// En: TestRoutesDevVerifyEmailTokenMountedOnlyInNonProduction verifies that the dev route
+// is only available when APP_ENV is not production.
+// Es: TestRoutesDevVerifyEmailTokenMountedOnlyInNonProduction verifica que la ruta de
+// desarrollo solo esté disponible cuando APP_ENV no es production.
+func TestRoutesDevVerifyEmailTokenMountedOnlyInNonProduction(test *testing.T) {
+	require.NoError(test, os.Setenv("APP_ENV", "development"))
 
 	app := fiber.New()
 	handler, authService := SetupAuthHandlerTest(test)
@@ -30,7 +30,7 @@ func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
 	require.NoError(test, err)
-	assert.NotEqual(test, fiber.StatusNotFound, resp.StatusCode, "route must be reachable when APP_ENV=localstack")
+	assert.NotEqual(test, fiber.StatusNotFound, resp.StatusCode, "route must be reachable when APP_ENV is non-production")
 
 	require.NoError(test, os.Setenv("APP_ENV", "production"))
 
@@ -43,5 +43,5 @@ func TestRoutesDevVerifyEmailTokenMountedOnlyInLocalstack(test *testing.T) {
 	req2.Header.Set("Content-Type", "application/json")
 	resp2, err := app2.Test(req2, fiber.TestConfig{Timeout: 0})
 	require.NoError(test, err)
-	assert.Equal(test, fiber.StatusNotFound, resp2.StatusCode, "route must not exist when APP_ENV!=localstack")
+	assert.Equal(test, fiber.StatusNotFound, resp2.StatusCode, "route must not exist when APP_ENV=production")
 }
