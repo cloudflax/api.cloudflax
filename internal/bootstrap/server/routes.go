@@ -72,7 +72,7 @@ func (a *accountListerAdapter) ListAccountsForUser(userID string) ([]user.Accoun
 // Falls back to a no-op sender and logs a warning if SES cannot be initialised.
 func newEmailSender(cfg *config.Config) email.TemplatedSender {
 	sender, err := email.NewSESSender(context.Background(), email.SESSenderOptions{
-		EndpointURL:     cfg.AWSEndpointURL,
+		EndpointURL:     cfg.SESEndpointURL,
 		Region:          cfg.AWSRegion,
 		AccessKeyID:     cfg.AWSAccessKeyID,
 		SecretAccessKey: cfg.AWSSecretAccessKey,

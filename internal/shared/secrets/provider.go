@@ -24,7 +24,7 @@ type secretCacheAPI interface {
 	GetSecretStringWithContext(ctx context.Context, secretId string) (string, error)
 }
 
-// SecretsManagerProvider loads DBCredentials from AWS Secrets Manager (LocalStack or AWS).
+// SecretsManagerProvider loads DBCredentials from AWS Secrets Manager.
 type SecretsManagerProvider struct {
 	cache  secretCacheAPI
 	secret string
@@ -35,24 +35,33 @@ type SecretsManagerOptions struct {
 	EndpointURL     string
 	Region          string
 	SecretID        string
+	Profile         string // AWS named profile (e.g. "dev"); takes precedence over default chain
 	AccessKeyID     string
 	SecretAccessKey string
 	CacheTTL        time.Duration
 }
 
 // NewSecretsManagerProvider creates a provider that fetches DB credentials from Secrets Manager.
-// EndpointURL is used to point to LocalStack; leave empty for real AWS.
+// EndpointURL overrides the default AWS endpoint; leave empty for standard AWS.
 func NewSecretsManagerProvider(ctx context.Context, opts SecretsManagerOptions) (Provider, error) {
 	region := opts.Region
 	if region == "" {
 		region = "us-east-1"
 	}
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	configOpts := []func(*config.LoadOptions) error{
+		config.WithRegion(region),
+	}
+	if opts.Profile != "" {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(opts.Profile))
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("load aws config: %w", err)
 	}
 
+	// Static credentials only for custom endpoints (e.g. LocalStack).
 	if opts.EndpointURL != "" && opts.AccessKeyID != "" {
 		cfg.Credentials = credentials.NewStaticCredentialsProvider(
 			opts.AccessKeyID,

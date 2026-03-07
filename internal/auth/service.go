@@ -52,7 +52,7 @@ type UserRepository interface {
 }
 
 // AuthVerifyEmailTemplateName is the SES template name for the verification email.
-const AuthVerifyEmailTemplateName = "AuthVerifyEmail"
+const AuthVerifyEmailTemplateName = "auth-verify-email"
 
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.

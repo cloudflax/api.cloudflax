@@ -1,6 +1,17 @@
 # Setup del proyecto Cloudflax API - Progreso
 
-Seguimiento del estado del proyecto. Lo ya implementado (modelos User/Account, registro, login JWT, cuentas y contexto de petición) está completo; este documento se centra en lo pendiente.
+Seguimiento del estado del proyecto.
+
+---
+
+## Completado — Migración a AWS dev real
+
+Transición de servicios AWS simulados (Moto/LocalStack) a los servicios reales del entorno de desarrollo en AWS.
+
+- [x] 1. Limpiar `docker-compose.yml` — migrado a `env_file` con `.env`
+- [x] 2. Configurar credenciales AWS reales — `.env` con placeholders, `.env.example` como referencia
+- [x] 3. Limpiar comentarios de moto/LocalStack en el código Go
+- [x] 4. Actualizar README con el nuevo flujo de configuración
 
 ---
 
@@ -8,27 +19,30 @@ Seguimiento del estado del proyecto. Lo ya implementado (modelos User/Account, r
 
 ### Corto plazo — Infraestructura
 
-- [ ] **6. CORS** — Headers para que el frontend consuma la API
-- [ ] **7. Request ID** — Propagar `X-Request-ID` para tracing
-- [ ] **8. Error handler centralizado** — Fiber error handler global para respuestas de error consistentes
+- [ ] CORS — Headers para que el frontend consuma la API
+- [ ] Request ID — Propagar `X-Request-ID` para tracing
+- [ ] Error handler centralizado — Fiber error handler global para respuestas de error consistentes
 
 ### Medio plazo
 
-- [ ] **9. CI/CD** — GitHub Actions o GitLab CI
-- [ ] **10. Paginación** — `?page=1&limit=10` en listas
+- [ ] CI/CD — GitHub Actions o GitLab CI
+- [ ] Paginación — `?page=1&limit=10` en listas
 
 ### Largo plazo
 
-- [ ] **11. Rate limiting** — Límite de requests por IP
-- [ ] **12. API versioning** — Rutas bajo `/api/v1/`
-- [ ] **13. Métricas y tracing** — Prometheus, OpenTelemetry
-- [ ] **14. Documentación API** — OpenAPI/Swagger
+- [ ] Rate limiting — Límite de requests por IP
+- [ ] API versioning — Rutas bajo `/api/v1/`
+- [ ] Métricas y tracing — Prometheus, OpenTelemetry
+- [ ] Documentación API — OpenAPI/Swagger
 
 ---
 
-## Estado actual
+## Completado
 
-- **Completado:** Cuentas y propiedad de datos (docs/ACCOUNTS_AND_DATA_OWNERSHIP.md): modelos User/Account, registro, login JWT, cuentas, membresía, RequestContext y filtrado por account.
-- **Completado:** Envío de email de verificación vía AWS SES v2 (`internal/shared/email`). El email se envía al registrar y al reenviar verificación. Configuración: `SES_FROM_ADDRESS`, `APP_URL`. Reutiliza `AWS_REGION`, `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`.
-- **Siguiente paso:** Corto plazo — CORS (tarea 6), Request ID (7) o error handler centralizado (8).
-- **Última actualización:** 2026-02-21
+- Cuentas y propiedad de datos: modelos User/Account, registro, login JWT, cuentas, membresía, RequestContext y filtrado por account.
+- Envío de email de verificación vía AWS SES v2 (`internal/shared/email`).
+- Invoices CRUD con filtrado por account.
+
+---
+
+**Última actualización:** 2026-03-07

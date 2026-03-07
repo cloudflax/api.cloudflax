@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
 	"gorm.io/driver/postgres"
@@ -14,6 +15,8 @@ var DB *gorm.DB
 
 // Init opens the PostgreSQL connection.
 func Init(cfg *config.Config) error {
+	slog.Info("database connecting", "host", cfg.DBHost, "port", cfg.DBPort, "dbname", cfg.DBName, "sslmode", cfg.DBSSLMode)
+
 	dsn := buildDSN(cfg)
 
 	var err error
@@ -22,7 +25,7 @@ func Init(cfg *config.Config) error {
 		return fmt.Errorf("open connection: %w", err)
 	}
 
-	slog.Info("database connected", "host", cfg.DBHost, "dbname", cfg.DBName)
+	slog.Info("database connected", "host", cfg.DBHost, "dbname", cfg.DBName, "sslmode", cfg.DBSSLMode)
 	return nil
 }
 
@@ -51,13 +54,30 @@ func buildDSN(cfg *config.Config) string {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
-	return fmt.Sprintf(
+
+	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost,
 		cfg.DBPort,
 		cfg.DBUser,
-		cfg.DBPassword,
+		quoteDSNValue(cfg.DBPassword),
 		cfg.DBName,
 		sslmode,
 	)
+
+	if cfg.DBSSLRootCert != "" {
+		dsn += fmt.Sprintf(" sslrootcert=%s", cfg.DBSSLRootCert)
+	}
+
+	dsn += " connect_timeout=10"
+
+	return dsn
+}
+
+// quoteDSNValue wraps a value in single quotes for a libpq key=value DSN,
+// escaping embedded single quotes and backslashes.
+func quoteDSNValue(v string) string {
+	escaped := strings.ReplaceAll(v, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+	return "'" + escaped + "'"
 }

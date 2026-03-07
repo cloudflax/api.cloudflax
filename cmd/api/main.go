@@ -17,11 +17,13 @@ import (
 func main() {
 	logger.Init(os.Getenv("LOG_LEVEL"))
 
+	slog.Info("loading configuration")
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("configuration loaded")
 
 	if err := database.Init(cfg); err != nil {
 		slog.Error("database", "error", err)
