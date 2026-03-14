@@ -61,18 +61,18 @@ type Service struct {
 	userRepository UserRepository
 	jwtSecret      []byte
 	emailSender    email.TemplatedSender
-	appURL         string
+	frontendURL    string
 }
 
 // En: NewService creates a new authentication service.
 // Es: NewService crea un nuevo servicio de autenticación.
-func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.TemplatedSender, appURL string) *Service {
+func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.TemplatedSender, frontendURL string) *Service {
 	return &Service{
 		repository:     repository,
 		userRepository: userRepository,
 		jwtSecret:      []byte(jwtSecret),
 		emailSender:    emailSender,
-		appURL:         strings.TrimSuffix(strings.TrimSpace(appURL), "/"),
+		frontendURL:    strings.TrimSuffix(strings.TrimSpace(frontendURL), "/"),
 	}
 }
 
@@ -115,10 +115,10 @@ func (service *Service) Register(name, email, password string) (*user.User, stri
 
 // sendVerificationEmail sends the AuthVerifyEmail template to the given address with name and verification link.
 func (service *Service) sendVerificationEmail(toAddress, toName, token string) error {
-	if service.appURL == "" {
-		return fmt.Errorf("app URL is required to build verification link")
+	if service.frontendURL == "" {
+		return fmt.Errorf("frontend URL is required to build verification link")
 	}
-	link := fmt.Sprintf("%s/auth/verify-email?token=%s", service.appURL, token)
+	link := fmt.Sprintf("%s/auth/verify-email?token=%s", service.frontendURL, token)
 	data := map[string]string{"name": toName, "link": link}
 	templateData, err := json.Marshal(data)
 	if err != nil {

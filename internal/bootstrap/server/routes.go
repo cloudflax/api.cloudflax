@@ -27,7 +27,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	accountRepository := account.NewRepository(database.DB)
 	accountService := account.NewService(accountRepository, userRepository)
 
-	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender, cfg.AppURL)
+	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender, cfg.FrontendURL)
 	authHandler := auth.NewHandler(authService)
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)

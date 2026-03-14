@@ -13,10 +13,11 @@ import (
 
 // Config holds the application configuration.
 type Config struct {
-	Port      string
-	LogLevel  string // debug, info, warn, error
-	JWTSecret string
-	AppURL    string
+	Port        string
+	LogLevel    string // debug, info, warn, error
+	JWTSecret   string
+	AppURL      string
+	FrontendURL string
 
 	DBHost        string
 	DBPort        int
@@ -32,8 +33,8 @@ type Config struct {
 	AWSAccessKeyID     string
 	AWSSecretAccessKey string
 
-	SESFromAddress  string
-	SESEndpointURL  string
+	SESFromAddress string
+	SESEndpointURL string
 }
 
 var (
@@ -52,6 +53,7 @@ func Load() (*Config, error) {
 		DBSSLRootCert:      getEnv("DB_SSL_ROOT_CERT", ""),
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		AppURL:             getEnv("APP_URL", ""),
+		FrontendURL:        getEnv("FRONTEND_URL", ""),
 		AWSRegion:          getEnv("AWS_REGION", ""),
 		AWSProfile:         getEnv("AWS_PROFILE", ""),
 		AWSEndpointURL:     awsEndpointURL(),
