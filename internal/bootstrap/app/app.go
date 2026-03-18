@@ -12,6 +12,7 @@ func Run(cfg *config.Config) error {
 	app := fiber.New()
 
 	app.Use(middleware.Logger())
+	app.Use(middleware.CORS(cfg.FrontendURL))
 	server.Mount(app, cfg)
 
 	return app.Listen(":" + cfg.Port)
