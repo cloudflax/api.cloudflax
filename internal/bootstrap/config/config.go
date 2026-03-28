@@ -35,6 +35,9 @@ type Config struct {
 
 	SESFromAddress string
 	SESEndpointURL string
+
+	// Verification email is sent by Lambda (async).
+	LambdaSendVerifyEmailName string
 }
 
 var (
@@ -47,20 +50,21 @@ var (
 // Server settings (PORT, LOG_LEVEL) and DB_SSL_MODE come from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:               getEnv("PORT", ""),
-		LogLevel:           getEnv("LOG_LEVEL", ""),
-		DBSSLMode:          getEnv("DB_SSL_MODE", ""),
-		DBSSLRootCert:      getEnv("DB_SSL_ROOT_CERT", ""),
-		JWTSecret:          getEnv("JWT_SECRET", ""),
-		AppURL:             getEnv("APP_URL", ""),
-		FrontendURL:        getEnv("FRONTEND_URL", ""),
-		AWSRegion:          getEnv("AWS_REGION", ""),
-		AWSProfile:         getEnv("AWS_PROFILE", ""),
-		AWSEndpointURL:     awsEndpointURL(),
-		AWSAccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
-		AWSSecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
-		SESFromAddress:     getEnv("SES_FROM_ADDRESS", ""),
-		SESEndpointURL:     getEnv("SES_ENDPOINT_URL", ""),
+		Port:                      getEnv("PORT", ""),
+		LogLevel:                  getEnv("LOG_LEVEL", ""),
+		DBSSLMode:                 getEnv("DB_SSL_MODE", ""),
+		DBSSLRootCert:             getEnv("DB_SSL_ROOT_CERT", ""),
+		JWTSecret:                 getEnv("JWT_SECRET", ""),
+		AppURL:                    getEnv("APP_URL", ""),
+		FrontendURL:               getEnv("FRONTEND_URL", ""),
+		AWSRegion:                 getEnv("AWS_REGION", ""),
+		AWSProfile:                getEnv("AWS_PROFILE", ""),
+		AWSEndpointURL:            awsEndpointURL(),
+		AWSAccessKeyID:            getEnv("AWS_ACCESS_KEY_ID", ""),
+		AWSSecretAccessKey:        getEnv("AWS_SECRET_ACCESS_KEY", ""),
+		SESFromAddress:            getEnv("SES_FROM_ADDRESS", ""),
+		SESEndpointURL:            getEnv("SES_ENDPOINT_URL", ""),
+		LambdaSendVerifyEmailName: getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
 	}
 
 	secretName := getEnv("AWS_SECRET_NAME", "")

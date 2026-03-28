@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
+	"github.com/cloudflax/api.cloudflax/internal/shared/verificationnotify"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,11 @@ func setupServiceTest(test *testing.T) *Service {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	return NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{}, "http://test")
+	return NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:            testJWTSecret,
+		VerificationNotifier: verificationnotify.NoopNotifier{},
+		FrontendURL:          "http://test",
+	})
 }
 
 // En: seedUser creates a test user.
@@ -127,7 +132,11 @@ func TestServiceValidateAccessTokenWrongSecret(test *testing.T) {
 	pair, err := service.Login("dave@example.com", "password123")
 	require.NoError(test, err)
 
-	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), "different-secret", &noopEmailSender{}, "http://test")
+	otherService := NewService(NewRepository(database.DB), user.NewRepository(database.DB), ServiceOptions{
+		JWTSecret:            "different-secret",
+		VerificationNotifier: verificationnotify.NoopNotifier{},
+		FrontendURL:          "http://test",
+	})
 	_, _, err = otherService.ValidateAccessToken(pair.AccessToken)
 	assert.Error(test, err)
 }

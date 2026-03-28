@@ -3,14 +3,15 @@ package server
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/cloudflax/api.cloudflax/internal/account"
 	"github.com/cloudflax/api.cloudflax/internal/auth"
 	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
 	"github.com/cloudflax/api.cloudflax/internal/invoice"
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
-	"github.com/cloudflax/api.cloudflax/internal/shared/email"
 	"github.com/cloudflax/api.cloudflax/internal/shared/middleware"
+	"github.com/cloudflax/api.cloudflax/internal/shared/verificationnotify"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 )
@@ -20,14 +21,18 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	app.Get("/", Home)
 	app.Get("/health", Health())
 
-	emailSender := newEmailSender(cfg)
+	verifyNotifier := newVerificationNotifier(cfg)
 
 	authRepository := auth.NewRepository(database.DB)
 	userRepository := user.NewRepository(database.DB)
 	accountRepository := account.NewRepository(database.DB)
 	accountService := account.NewService(accountRepository, userRepository)
 
-	authService := auth.NewService(authRepository, userRepository, cfg.JWTSecret, emailSender, cfg.FrontendURL)
+	authService := auth.NewService(authRepository, userRepository, auth.ServiceOptions{
+		JWTSecret:            cfg.JWTSecret,
+		VerificationNotifier: verifyNotifier,
+		FrontendURL:          cfg.FrontendURL,
+	})
 	authHandler := auth.NewHandler(authService)
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)
@@ -68,19 +73,25 @@ func (a *accountListerAdapter) ListAccountsForUser(userID string) ([]user.Accoun
 	return result, nil
 }
 
-// newEmailSender builds an SES-backed TemplatedSender from the loaded config.
-// Falls back to a no-op sender and logs a warning if SES cannot be initialised.
-func newEmailSender(cfg *config.Config) email.TemplatedSender {
-	sender, err := email.NewSESSender(context.Background(), email.SESSenderOptions{
-		EndpointURL:     cfg.SESEndpointURL,
+// newVerificationNotifier builds a Lambda-backed notifier for verification emails (async invoke).
+// Falls back to noop and logs a warning if the function is not configured or init fails.
+func newVerificationNotifier(cfg *config.Config) verificationnotify.Notifier {
+	fn := strings.TrimSpace(cfg.LambdaSendVerifyEmailName)
+	if fn == "" {
+		slog.Warn("LAMBDA_SEND_VERIFY_EMAIL_NAME is empty; verification emails will not be sent")
+		return verificationnotify.NoopNotifier{}
+	}
+
+	n, err := verificationnotify.NewLambdaNotifier(context.Background(), verificationnotify.LambdaNotifierOptions{
+		EndpointURL:     cfg.AWSEndpointURL,
 		Region:          cfg.AWSRegion,
 		AccessKeyID:     cfg.AWSAccessKeyID,
 		SecretAccessKey: cfg.AWSSecretAccessKey,
-		FromAddress:     cfg.SESFromAddress,
+		FunctionName:    fn,
 	})
 	if err != nil {
-		slog.Warn("failed to initialise SES sender, falling back to noop", "error", err)
-		return &email.NoopSender{}
+		slog.Warn("failed to initialise verification Lambda notifier, falling back to noop", "error", err)
+		return verificationnotify.NoopNotifier{}
 	}
-	return sender
+	return n
 }

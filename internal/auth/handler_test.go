@@ -12,19 +12,12 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/database"
 	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
+	"github.com/cloudflax/api.cloudflax/internal/shared/verificationnotify"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// En: noopEmailSender discards all outgoing emails in tests.
-// Es: noopEmailSender descarta todos los correos electrónicos salientes en pruebas.
-type noopEmailSender struct{}
-
-// En: SendTemplatedEmail does nothing in tests.
-// Es: SendTemplatedEmail no hace nada en pruebas.
-func (n *noopEmailSender) SendTemplatedEmail(_, _, _ string) error { return nil }
 
 // En: handlerTestHashToken calculates the SHA-256 hash of a test token.
 // Es: handlerTestHashToken calcula el hash SHA-256 de un token de prueba.
@@ -46,7 +39,11 @@ func SetupAuthHandlerTest(test *testing.T) (*Handler, *Service) {
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
-	authService := NewService(authRepository, userRepository, testJWTSecret, &noopEmailSender{}, "http://test")
+	authService := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:            testJWTSecret,
+		VerificationNotifier: verificationnotify.NoopNotifier{},
+		FrontendURL:          "http://test",
+	})
 	authHandler := NewHandler(authService)
 	return authHandler, authService
 }
@@ -619,4 +616,3 @@ func TestDevGetVerificationTokenSuccess(test *testing.T) {
 	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
 	assert.NotEmpty(test, result.Data.Token)
 }
-

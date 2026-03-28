@@ -211,9 +211,12 @@ func (handler *Handler) ResendVerification(ctx fiber.Ctx) error {
 }
 
 // En: DevGetVerificationToken returns the current email verification token for a given email.
-//     This endpoint is intended for development environments only.
+//
+//	This endpoint is intended for development environments only.
+//
 // Es: DevGetVerificationToken devuelve el token de verificación de correo electrónico actual para un correo dado.
-//     Este endpoint está pensado solo para entornos de desarrollo.
+//
+//	Este endpoint está pensado solo para entornos de desarrollo.
 func (handler *Handler) DevGetVerificationToken(ctx fiber.Ctx) error {
 	var req ResendVerificationRequest
 	if err := ctx.Bind().Body(&req); err != nil {

@@ -19,7 +19,7 @@ Cada funcionalidad vive en su propia carpeta dentro de `internal/`:
 
 - **`internal/bootstrap/`**: Configuración, servidor y arranque de la app.
 - **`internal/{feature}/`**: Puede contener `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go` y opcionalmente `validator.go` u otros helpers específicos del recurso.
-- **`internal/shared/`**: Código común: `database` (conexión y migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator` y otras utilidades compartidas.
+- **`internal/shared/`**: Código común: `database` (conexión y migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator`, `verificationnotify` (invocación Lambda para correo de verificación) y otras utilidades compartidas.
 
 No todos los features requieren todos estos archivos; un recurso simple puede usar solo `handler.go`, `repository.go`, `model.go` y `routes.go`.
 

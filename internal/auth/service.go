@@ -1,10 +1,10 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,7 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/cloudflax/api.cloudflax/internal/shared/email"
+	"github.com/cloudflax/api.cloudflax/internal/shared/verificationnotify"
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
@@ -51,28 +51,37 @@ type UserRepository interface {
 	Update(u *user.User) error
 }
 
-// AuthVerifyEmailTemplateName is the SES template name for the verification email.
-const AuthVerifyEmailTemplateName = "auth-verify-email"
+// En: ServiceOptions configures JWT signing, verification email delivery and frontend URL for auth links.
+// Es: ServiceOptions configura la firma JWT, el envío del correo de verificación y la URL del frontend para enlaces de auth.
+type ServiceOptions struct {
+	JWTSecret            string
+	VerificationNotifier verificationnotify.Notifier
+	FrontendURL          string
+}
 
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
-	repository     *Repository
-	userRepository UserRepository
-	jwtSecret      []byte
-	emailSender    email.TemplatedSender
-	frontendURL    string
+	repository           *Repository
+	userRepository       UserRepository
+	jwtSecret            []byte
+	verificationNotifier verificationnotify.Notifier
+	frontendURL          string
 }
 
 // En: NewService creates a new authentication service.
 // Es: NewService crea un nuevo servicio de autenticación.
-func NewService(repository *Repository, userRepository UserRepository, jwtSecret string, emailSender email.TemplatedSender, frontendURL string) *Service {
+func NewService(repository *Repository, userRepository UserRepository, opts ServiceOptions) *Service {
+	notifier := opts.VerificationNotifier
+	if notifier == nil {
+		notifier = verificationnotify.NoopNotifier{}
+	}
 	return &Service{
-		repository:     repository,
-		userRepository: userRepository,
-		jwtSecret:      []byte(jwtSecret),
-		emailSender:    emailSender,
-		frontendURL:    strings.TrimSuffix(strings.TrimSpace(frontendURL), "/"),
+		repository:           repository,
+		userRepository:       userRepository,
+		jwtSecret:            []byte(opts.JWTSecret),
+		verificationNotifier: notifier,
+		frontendURL:          strings.TrimSuffix(strings.TrimSpace(opts.FrontendURL), "/"),
 	}
 }
 
@@ -106,25 +115,20 @@ func (service *Service) Register(name, email, password string) (*user.User, stri
 		return nil, "", fmt.Errorf("create auth provider: %w", err)
 	}
 
-	if err := service.sendVerificationEmail(u.Email, u.Name, token); err != nil {
+	if err := service.sendVerificationEmail(context.Background(), u.Email, u.Name, token); err != nil {
 		slog.Error("send verification email after register", "email", u.Email, "error", err)
 	}
 
 	return u, token, nil
 }
 
-// sendVerificationEmail sends the AuthVerifyEmail template to the given address with name and verification link.
-func (service *Service) sendVerificationEmail(toAddress, toName, token string) error {
+// sendVerificationEmail enqueues verification delivery (async Lambda) with name and verification link.
+func (service *Service) sendVerificationEmail(ctx context.Context, toAddress, toName, token string) error {
 	if service.frontendURL == "" {
 		return fmt.Errorf("frontend URL is required to build verification link")
 	}
 	link := fmt.Sprintf("%s/auth/verify-email?token=%s", service.frontendURL, token)
-	data := map[string]string{"name": toName, "link": link}
-	templateData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("marshal verification template data: %w", err)
-	}
-	return service.emailSender.SendTemplatedEmail(toAddress, AuthVerifyEmailTemplateName, string(templateData))
+	return service.verificationNotifier.NotifyVerificationEmail(ctx, toAddress, toName, link)
 }
 
 // En: VerifyEmail marks the user's email as verified using the token previously issued during registration (or after a verification resend request).
@@ -169,7 +173,7 @@ func (service *Service) ResendVerification(email string) (string, error) {
 		return "", fmt.Errorf("update verification token: %w", err)
 	}
 
-	if err := service.sendVerificationEmail(u.Email, u.Name, token); err != nil {
+	if err := service.sendVerificationEmail(context.Background(), u.Email, u.Name, token); err != nil {
 		slog.Error("send verification email after resend", "email", u.Email, "error", err)
 	}
 
