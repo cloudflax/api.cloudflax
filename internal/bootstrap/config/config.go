@@ -26,6 +26,8 @@ type Config struct {
 	DBName        string
 	DBSSLMode     string // require, verify-ca, verify-full, disable
 	DBSSLRootCert string // path to CA certificate (e.g. /certs/global-bundle.pem)
+	// DBSlowQueryThresholdMS is the slow-query log threshold in milliseconds.
+	DBSlowQueryThresholdMS int
 
 	AWSRegion          string
 	AWSProfile         string // named profile from ~/.aws/config (e.g. "dev")
@@ -54,6 +56,7 @@ func Load() (*Config, error) {
 		LogLevel:                  getEnv("LOG_LEVEL", ""),
 		DBSSLMode:                 getEnv("DB_SSL_MODE", ""),
 		DBSSLRootCert:             getEnv("DB_SSL_ROOT_CERT", ""),
+		DBSlowQueryThresholdMS:    resolveSlowQueryThresholdMS(),
 		JWTSecret:                 getEnv("JWT_SECRET", ""),
 		AppURL:                    getEnv("APP_URL", ""),
 		FrontendURL:               getEnv("FRONTEND_URL", ""),
@@ -161,6 +164,18 @@ func getEnvInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+// resolveSlowQueryThresholdMS returns DB_SLOW_QUERY_THRESHOLD_MS when set to a positive value;
+// otherwise 500 in development (APP_ENV=development) and 200 for other environments.
+func resolveSlowQueryThresholdMS() int {
+	if ms := getEnvInt("DB_SLOW_QUERY_THRESHOLD_MS", 0); ms > 0 {
+		return ms
+	}
+	if getEnv("APP_ENV", "") == "development" {
+		return 500
+	}
+	return 200
 }
 
 // awsEndpointURL resolves a custom AWS endpoint URL from the environment.

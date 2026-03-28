@@ -23,13 +23,7 @@ func Init(cfg *config.Config) error {
 
 	dsn := buildDSN(cfg)
 
-	var slowThreshold time.Duration
-	appEnv := os.Getenv("APP_ENV")
-	if appEnv == "development" {
-		slowThreshold = 500 * time.Millisecond
-	} else {
-		slowThreshold = 200 * time.Millisecond
-	}
+	slowThreshold := time.Duration(cfg.DBSlowQueryThresholdMS) * time.Millisecond
 
 	gormLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),
