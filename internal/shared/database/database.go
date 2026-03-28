@@ -3,12 +3,16 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/bootstrap/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -19,8 +23,28 @@ func Init(cfg *config.Config) error {
 
 	dsn := buildDSN(cfg)
 
+	var slowThreshold time.Duration
+	appEnv := os.Getenv("APP_ENV")
+	if appEnv == "development" {
+		slowThreshold = 500 * time.Millisecond
+	} else {
+		slowThreshold = 200 * time.Millisecond
+	}
+
+	gormLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             slowThreshold,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: gormLogger,
+	})
 	if err != nil {
 		return fmt.Errorf("open connection: %w", err)
 	}
