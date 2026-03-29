@@ -15,7 +15,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 | Contrato de auth para frontends (JWT, refresh, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
 | Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
 | Detalle por feature (modelo, errores HTTP, notas) | `internal/{feature}/README.md` (p. ej. [internal/auth/README.md](./internal/auth/README.md), [internal/user/README.md](./internal/user/README.md)) |
-| Issue, project `@api.cloudflax`, ramas y PRs | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
+| Issue, project `@api.cloudflax`, ramas, PRs y **cadencia en equipo** (cuándo preguntar, orden issue→rama, commits/PR solo si lo pides) | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
 
 ---
 
@@ -23,7 +23,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 
 - Ejecuta **`make lint`** y **`make test`**; no dejes el pipeline roto.
 - Cambio de modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`). Ver flujo en [ARCHITECTURE.md](./ARCHITECTURE.md).
-- Trabajo **trazable** (feature, cambio de comportamiento, refactor relevante): issue en GitHub + rama asociada — [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md).
+- Trabajo **trazable:** sigue [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) **de forma eficiente y en equipo**: pregunta al inicio si se crea rama; si confirmas, **issue primero y rama después**; **no** hagas commit, push ni PR hasta petición explícita (el revisor debe poder iterar en el código contigo).
 - **Logs:** `slog` estructurado; no registrar passwords, tokens ni PII. Niveles y correlación: ver capa de middleware en [ARCHITECTURE.md](./ARCHITECTURE.md) y respuestas de error en [CONVENTIONS.md](./CONVENTIONS.md).
 
 ---
@@ -40,7 +40,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 
 ### 4. GitHub: issue, proyecto `@api.cloudflax`, rama y PR
 
-El flujo completo (issue, `gh`, naming de rama, PR, tablero, commits, permisos) está en **[docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md)**.
+El detalle operativo (comandos `gh`, nombres de rama, PR, tablero) y la **cadencia colaborativa** (qué hacer solo tras confirmación, orden issue→rama, commits/PR cuando el usuario lo pida) están en **[docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md)**.
 
 ---
 
