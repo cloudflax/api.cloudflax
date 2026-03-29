@@ -29,9 +29,10 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	accountService := account.NewService(accountRepository, userRepository)
 
 	authService := auth.NewService(authRepository, userRepository, auth.ServiceOptions{
-		JWTSecret:            cfg.JWTSecret,
-		VerificationNotifier: verifyNotifier,
-		FrontendURL:          cfg.FrontendURL,
+		JWTSecret:             cfg.JWTSecret,
+		VerificationNotifier:  verifyNotifier,
+		FrontendURL:           cfg.FrontendURL,
+		AccessTokenDuration:   cfg.JWTAccessTokenDuration,
 	})
 	authHandler := auth.NewHandler(authService)
 	requireAuth := middleware.RequireAuth(authService)

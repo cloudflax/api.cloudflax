@@ -81,6 +81,10 @@ func (handler *Handler) Refresh(ctx fiber.Ctx) error {
 
 	pair, err := handler.service.RefreshTokens(req.RefreshToken)
 	if err != nil {
+		if errors.Is(err, ErrJWTUsedAsRefreshToken) {
+			return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeRefreshTokenWrongFormat,
+				"Use refresh_token (opaque value from login), not access_token (JWT)")
+		}
 		if errors.Is(err, ErrInvalidCredentials) {
 			return runtimeError.Respond(ctx, fiber.StatusUnauthorized, runtimeError.CodeTokenInvalid, "Invalid or expired refresh token")
 		}

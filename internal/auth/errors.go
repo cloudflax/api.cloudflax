@@ -21,3 +21,7 @@ var ErrEmailNotVerified = fmt.Errorf("email not verified")
 // En: ErrTokenNotFound is returned when a refresh token does not exist.
 // Es: ErrTokenNotFound se devuelve cuando un token de actualización no existe.
 var ErrTokenNotFound = fmt.Errorf("refresh token not found")
+
+// En: ErrJWTUsedAsRefreshToken is returned when the client sends a JWT (access token) as refresh_token.
+// Es: ErrJWTUsedAsRefreshToken se devuelve cuando el cliente envía un JWT (access token) como refresh_token.
+var ErrJWTUsedAsRefreshToken = fmt.Errorf("jwt used as refresh token")

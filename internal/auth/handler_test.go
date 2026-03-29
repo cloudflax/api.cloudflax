@@ -270,6 +270,32 @@ func TestRefreshInvalidToken(test *testing.T) {
 	assert.Equal(test, runtimeError.CodeTokenInvalid, errResp.Error.Code)
 }
 
+// En: TestRefreshRejectsAccessTokenAsRefreshToken ensures JWT access tokens are not accepted as refresh_token.
+// Es: TestRefreshRejectsAccessTokenAsRefreshToken asegura que los JWT de acceso no se aceptan como refresh_token.
+func TestRefreshRejectsAccessTokenAsRefreshToken(test *testing.T) {
+	handler, service := SetupAuthHandlerTest(test)
+	createVerifiedTestUser(test, "Frank", "frank@example.com", "password123")
+
+	pair, err := service.Login("frank@example.com", "password123")
+	require.NoError(test, err)
+
+	app := fiber.New()
+	app.Post("/auth/refresh", handler.Refresh)
+
+	bodyStr, err := json.Marshal(map[string]string{"refresh_token": pair.AccessToken})
+	require.NoError(test, err)
+	req := httptest.NewRequest("POST", "/auth/refresh", strings.NewReader(string(bodyStr)))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusBadRequest, resp.StatusCode)
+	errResp := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeRefreshTokenWrongFormat, errResp.Error.Code)
+}
+
 // En: TestRefreshTokenRotationOldTokenInvalidAfterRefresh tests the refresh token rotation with an invalid token after refresh.
 // Es: TestRefreshTokenRotationOldTokenInvalidAfterRefresh prueba el refresco de token con token inválido después de refrescar.
 func TestRefreshTokenRotationOldTokenInvalidAfterRefresh(test *testing.T) {

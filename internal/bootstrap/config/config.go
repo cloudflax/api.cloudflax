@@ -40,6 +40,9 @@ type Config struct {
 
 	// Verification email is sent by Lambda (async).
 	LambdaSendVerifyEmailName string
+
+	// JWTAccessTokenDuration is the signed JWT access token lifetime.
+	JWTAccessTokenDuration time.Duration
 }
 
 var (
@@ -68,6 +71,7 @@ func Load() (*Config, error) {
 		SESFromAddress:            getEnv("SES_FROM_ADDRESS", ""),
 		SESEndpointURL:            getEnv("SES_ENDPOINT_URL", ""),
 		LambdaSendVerifyEmailName: getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
+		JWTAccessTokenDuration:    jwtAccessTokenDurationFromEnv(),
 	}
 
 	secretName := getEnv("AWS_SECRET_NAME", "")
@@ -147,6 +151,12 @@ func (c *Config) Validate() error {
 	if (c.DBSSLMode == "verify-full" || c.DBSSLMode == "verify-ca") && c.DBSSLRootCert == "" {
 		return fmt.Errorf("DB_SSL_ROOT_CERT is required when DB_SSL_MODE is %s", c.DBSSLMode)
 	}
+	if c.JWTAccessTokenDuration < time.Minute {
+		return fmt.Errorf("JWT_ACCESS_TOKEN_DURATION_MINUTES must be at least 1")
+	}
+	if c.JWTAccessTokenDuration > 7*24*time.Hour {
+		return fmt.Errorf("JWT_ACCESS_TOKEN_DURATION_MINUTES must not exceed 10080 (7 days)")
+	}
 	return nil
 }
 
@@ -185,4 +195,10 @@ func awsEndpointURL() string {
 		return v
 	}
 	return ""
+}
+
+// jwtAccessTokenDurationFromEnv reads JWT_ACCESS_TOKEN_DURATION_MINUTES (default 15).
+func jwtAccessTokenDurationFromEnv() time.Duration {
+	mins := getEnvInt("JWT_ACCESS_TOKEN_DURATION_MINUTES", 15)
+	return time.Duration(mins) * time.Minute
 }
