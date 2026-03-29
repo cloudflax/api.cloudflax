@@ -17,13 +17,11 @@ import (
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
-// En: accessTokenDuration is the duration of the access token.
-// Es: accessTokenDuration es el tiempo de duración del token de acceso.
 const (
-	accessTokenDuration       = 15 * time.Minute
-	refreshTokenDuration      = 7 * 24 * time.Hour
-	refreshTokenBytes         = 32
-	verificationTokenDuration = 24 * time.Hour
+	defaultAccessTokenDuration = 15 * time.Minute
+	refreshTokenDuration       = 7 * 24 * time.Hour
+	refreshTokenBytes          = 32
+	verificationTokenDuration  = 24 * time.Hour
 )
 
 // En: Claims holds the JWT payload for access tokens.
@@ -57,16 +55,19 @@ type ServiceOptions struct {
 	JWTSecret            string
 	VerificationNotifier verificationnotify.Notifier
 	FrontendURL          string
+	// AccessTokenDuration is the JWT access token lifetime; zero defaults to 15 minutes.
+	AccessTokenDuration time.Duration
 }
 
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
-	repository           *Repository
-	userRepository       UserRepository
-	jwtSecret            []byte
-	verificationNotifier verificationnotify.Notifier
-	frontendURL          string
+	repository            *Repository
+	userRepository        UserRepository
+	jwtSecret             []byte
+	verificationNotifier  verificationnotify.Notifier
+	frontendURL           string
+	accessTokenDuration   time.Duration
 }
 
 // En: NewService creates a new authentication service.
@@ -76,12 +77,17 @@ func NewService(repository *Repository, userRepository UserRepository, opts Serv
 	if notifier == nil {
 		notifier = verificationnotify.NoopNotifier{}
 	}
+	accessDur := opts.AccessTokenDuration
+	if accessDur <= 0 {
+		accessDur = defaultAccessTokenDuration
+	}
 	return &Service{
 		repository:           repository,
 		userRepository:       userRepository,
 		jwtSecret:            []byte(opts.JWTSecret),
 		verificationNotifier: notifier,
 		frontendURL:          strings.TrimSuffix(strings.TrimSpace(opts.FrontendURL), "/"),
+		accessTokenDuration:  accessDur,
 	}
 }
 
@@ -200,6 +206,11 @@ func (service *Service) Login(email, password string) (*TokenPair, error) {
 // En: RefreshTokens validates an existing refresh token, revokes it (rotation) and emits a new token pair.
 // Es: RefreshTokens valida un token de actualización existente, lo revoca (rotación) y emite un nuevo par de tokens.
 func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error) {
+	rawRefreshToken = strings.TrimSpace(rawRefreshToken)
+	if looksLikeJWT(rawRefreshToken) {
+		return nil, ErrJWTUsedAsRefreshToken
+	}
+
 	tokenHash := hashToken(rawRefreshToken)
 	stored, err := service.repository.GetByTokenHash(tokenHash)
 	if err != nil {
@@ -258,7 +269,7 @@ func (service *Service) parseAccessToken(tokenString string) (*Claims, error) {
 // En: generateTokenPair creates and stores a new access token and refresh token pair for the given user.
 // Es: generateTokenPair crea y almacena un nuevo par de tokens de acceso y actualización para el usuario dado.
 func (service *Service) generateTokenPair(u *user.User) (*TokenPair, error) {
-	expiresAt := time.Now().Add(accessTokenDuration)
+	expiresAt := time.Now().Add(service.accessTokenDuration)
 	accessToken, err := service.signAccessToken(u, expiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("sign access token: %w", err)
@@ -316,4 +327,19 @@ func generateSecureToken() (string, error) {
 func hashToken(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
+}
+
+// looksLikeJWT reports whether s has the typical three Base64URL segments of a JWT.
+// Refresh tokens in this API are opaque hex strings without dots.
+func looksLikeJWT(s string) bool {
+	parts := strings.Split(s, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if p == "" {
+			return false
+		}
+	}
+	return true
 }

@@ -35,10 +35,11 @@ const (
 
 // Auth error codes.
 const (
-	CodeInvalidCredentials ErrorCode = "INVALID_CREDENTIALS"
-	CodeUnauthorized       ErrorCode = "UNAUTHORIZED"
-	CodeTokenExpired       ErrorCode = "TOKEN_EXPIRED"
-	CodeTokenInvalid       ErrorCode = "TOKEN_INVALID"
+	CodeInvalidCredentials      ErrorCode = "INVALID_CREDENTIALS"
+	CodeUnauthorized            ErrorCode = "UNAUTHORIZED"
+	CodeTokenExpired            ErrorCode = "TOKEN_EXPIRED"
+	CodeTokenInvalid            ErrorCode = "TOKEN_INVALID"
+	CodeRefreshTokenWrongFormat ErrorCode = "REFRESH_TOKEN_WRONG_FORMAT"
 )
 
 // ErrorDetail describes a single field-level validation failure.
