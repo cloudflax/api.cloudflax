@@ -72,6 +72,17 @@ Este documento establece las directrices operativas que deben seguir los agentes
   - Explica brevemente el propósito del cambio y cualquier decisión no obvia.
   - Acepta y responde comentarios en inglés dentro del código, manteniendo la descripción funcional en español en la conversación con el usuario.
 
+### GitHub: issue, proyecto `@api.cloudflax`, rama y PR (cuando aplique)
+
+Para trabajo **trazable** (features, cambios de comportamiento, refactors relevantes), sigue este flujo **sin tratarlo como obligatorio para cada edición mínima**.
+
+- **¿Rama nueva?** Abre rama dedicada **solo cuando aporte** (varios commits, revisión aislada, riesgo en `main`, trabajo en paralelo). Los ajustes triviales acordados pueden integrarse sin rama si el equipo lo permite; no fuerces rama por defecto.
+- **Issue**: Crea la tarea en `cloudflax/api.cloudflax` con objetivos técnicos y criterios de aceptación. Enlázala al project de organización **`@api.cloudflax`** con `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (el título del project debe coincidir **exactamente** con GitHub).
+- **Etiquetas y tablero**: Asigna labels del repo cuando corresponda y mantén los campos del project alineados con la realidad (**Status**, Priority, Size, Estimate, fechas): p. ej. *Ready* cuando el código está listo para PR, *In review* al abrir el PR, *Done* tras merge a `main`.
+- **Nombre de rama** (si usas rama): `feature/<número-de-issue>-<slug-corto-en-kebab>` una vez conocido el `#` de la issue (ej. `feature/1-enhance-jwt-handling-config`). Evita slugs genéricos sin número si la issue ya existe.
+- **Commits**: Mensajes en **inglés**; convención tipo Conventional Commits cuando encaje (`feat`, `fix`, etc.). La vinculación fuerte a la issue va en el **PR**: incluye `Closes #N` o `Refs #N` en la descripción. Repetir `#N` en cada commit es **opcional**; si la rama ya está en remoto, no reescribas historia con `--amend` salvo petición explícita.
+- **PR**: Crea el PR contra `main` con resumen del cambio y `Closes #N` cuando el merge deba cerrar la issue.
+- **`gh` y permisos**: Para issues y Projects hace falta token con scopes adecuados (`project`, `read:project`). Si `gh` pide ampliar permisos o login interactivo, **indícalo al usuario** para que ejecute `gh auth refresh` (u otro paso interactivo); no sustituyas tú ese login en el agente.
 
 ## Flujo de Comunicación
 
