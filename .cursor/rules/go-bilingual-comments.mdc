@@ -1,0 +1,13 @@
+---
+description: Comentarios Go bilingües (En/Es) — doc de package sin mezcla; bilingüe solo en declaraciones exportadas.
+globs: "**/*.go"
+alwaysApply: true
+---
+
+# Comentarios Go (bilingüe En/Es)
+
+- **Doc de `package`:** una sola lengua en el bloque (español *o* inglés), sin alternancia línea a línea dentro del mismo doc.
+- **Declaraciones exportadas** (`func`, `type`, `const`, `var` visibles fuera del paquete): comentario doc puede ser bilingüe cuando el equipo lo use (p. ej. primera frase EN, segunda ES, o bloques claros separados).
+- **Comentarios en el cuerpo** (dentro de funciones, ramas, bucles): **una sola lengua** por comentario; no mezclar En/Es en comentarios de líneas internas salvo cita literal o término técnico puntual.
+
+El código (identificadores, mensajes de error de API) sigue [CONVENTIONS.md](../../CONVENTIONS.md) y [docs/AGENT_RULES.md](../../docs/AGENT_RULES.md).
