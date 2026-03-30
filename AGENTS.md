@@ -15,7 +15,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 | Contrato de auth para frontends (JWT, refresh, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
 | Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
 | Detalle por feature (modelo, errores HTTP, notas) | `internal/{feature}/README.md` (p. ej. [internal/auth/README.md](./internal/auth/README.md), [internal/user/README.md](./internal/user/README.md)) |
-| Issue, project `@api.cloudflax`, ramas, PRs y **cadencia en equipo** (cuándo preguntar, orden issue→rama, commits/PR solo si lo pides) | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
+| Issue, project `@api.cloudflax`, matriz de trazabilidad (issue+rama / solo issue / **solo commits** en `feature/<ID>-…` con `Refs`/`Closes #ID`), PRs y **cadencia en equipo** | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
 
 ---
 
@@ -23,7 +23,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 
 - Ejecuta **`make lint`** y **`make test`**; no dejes el pipeline roto.
 - Cambio de modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`). Ver flujo en [ARCHITECTURE.md](./ARCHITECTURE.md).
-- Trabajo **trazable:** sigue [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) **de forma eficiente y en equipo**: pregunta al inicio si se crea rama; si confirmas, **issue primero y rama después**; **no** hagas commit, push ni PR hasta petición explícita (el revisor debe poder iterar en el código contigo).
+- Trabajo **trazable:** [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md): pregunta al inicio la **matriz** (issue+rama, solo issue, o solo commits en rama ya existente `feature/<ID>-…` vinculando `#ID` en el mensaje). Si hace falta issue nuevo: **issue primero y rama después**. **No** hagas `push` ni PR hasta petición explícita (el revisor puede iterar en el código contigo); los **commits** cuando lo pidas o encaje el escenario acordado (inglés, Conventional Commits, `Refs`/`Closes` al `#ID` de la rama si aplica).
 - **Logs:** `slog` estructurado; no registrar passwords, tokens ni PII. Niveles y correlación: ver capa de middleware en [ARCHITECTURE.md](./ARCHITECTURE.md) y respuestas de error en [CONVENTIONS.md](./CONVENTIONS.md).
 
 ---
@@ -40,7 +40,7 @@ Este fichero es el **punto de entrada** para agentes de Cursor: prioridades oper
 
 ### 4. GitHub: issue, proyecto `@api.cloudflax`, rama y PR
 
-El detalle operativo (comandos `gh`, nombres de rama, PR, tablero) y la **cadencia colaborativa** (qué hacer solo tras confirmación, orden issue→rama, commits/PR cuando el usuario lo pida) están en **[docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md)**.
+El detalle operativo (comandos `gh`, nombres de rama, PR, tablero), la **matriz de inicio** (incluida la vía *solo commits* con `#ID` tomado de `feature/<ID>-…`) y la **cadencia colaborativa** (confirmación, orden issue→rama, commits/`push`/PR cuando el usuario lo pida) están en **[docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md)**.
 
 ---
 

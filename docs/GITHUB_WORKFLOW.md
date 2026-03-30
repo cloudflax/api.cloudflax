@@ -1,44 +1,35 @@
 # GitHub Workflow & Traceability (`cloudflax/api.cloudflax`)
 
-Actúa como un agente de desarrollo senior integrado en el repositorio `cloudflax/api.cloudflax`. Tu objetivo es garantizar la trazabilidad total del trabajo siguiendo estrictamente este protocolo de comandos y jerarquía.
+Agente integrado en este repo: trazabilidad vía GitHub Issues/Project y ramas. No ejecutes Issue + rama + PR sin señal del usuario.
 
-## 1. Protocolo de Inicio y Autonomía
-* **Detección de Tarea:** Ante cualquier trabajo trazable (features, cambios de comportamiento o refactors relevantes), **pregunta obligatoriamente** al usuario si desea iniciar el flujo de trazabilidad.
-* **Restricción de Ejecución:** No asumas ni ejecutes el flujo completo (Issue + Rama + PR) de forma automática. Sigue esta matriz de decisión:
+## Inicio
 
-| Input del Usuario | Acción Obligatoria del Agente |
-| :--- | :--- |
-| **"Sí, rama + trazabilidad"** | 1. Crear Issue en `@api.cloudflax`. <br> 2. Obtener el `#ID`. <br> 3. Crear rama `feature/<ID>-<slug>`. |
-| **"Solo crear tarea"** | Crear únicamente la Issue en el Project. No crear rama hasta nueva orden. |
+Ante trabajo trazable (feature, cambio de comportamiento, refactor relevante), **pregunta** si quiere flujo de trazabilidad. Matriz:
 
-## 2. Gestion de Issues y Projects
-* **Comando de Creación:** Usa `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"`.
-* **Project Board:** Es obligatorio asignar la Issue al proyecto de la organización **`@api.cloudflax`**. El nombre debe coincidir exactamente.
-* **Contenido:** La Issue debe incluir objetivos técnicos claros y criterios de aceptación antes de proceder.
+- **Sí, rama + trazabilidad** → crear Issue en `@api.cloudflax`, anotar `#ID`, rama `feature/<ID>-<slug-kebab>`.
+- **Solo crear tarea** → solo Issue en el project; sin rama hasta nueva orden.
+- **Solo commits (rama ya ligada al issue)** → ya estás en `feature/<ID>-<slug>` (o equivalente donde el prefijo numérico sea el id del issue); no crear issue ni rama nueva. Commits en **inglés** y Conventional Commits, cuerpo o pie con **`Refs #ID`** o **`Closes #ID`** según cierre real; sin `push`/PR salvo petición explícita (igual que en [Cierre y commits](#cierre-y-commits)).
 
-## 3. Estándar de Ramas (Branching)
-* **Formato:** `feature/<ID_ISSUE>-<slug-corto-en-kebab>` (Ejemplo: `feature/7-auth-fix`).
-* **Dependencia:** El número de la Issue **debe existir antes** de nombrar y crear la rama.
-* **Uso:** Prioriza ramas dedicadas para revisiones aisladas o trabajos en paralelo. No fuerces ramas para micro-ediciones mínimas.
+## Issues y ramas
 
-## 4. Desarrollo y Cierre (Loop de Feedback)
-* **Iteración:** El código se desarrolla mediante diálogo. No realices `git push` o `PR` de forma proactiva al terminar de escribir código.
-* **Ejecución de Cierre:** Ejecuta `git commit`, `git push` y `gh pr create` **solo bajo petición explícita** o cuando se acuerde un cierre autónomo en la sesión.
-* **Vinculación en PR:** La descripción del PR debe incluir `Closes #ID` o `Refs #ID` para vincular la actividad.
+Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nombre del project exacto). Cuerpo con objetivos técnicos y criterios de aceptación. Rama: `feature/<ID_ISSUE>-<slug>`; el `#ID` debe existir antes. Ramas dedicadas para revisiones o paralelismo; no forzar para micro-cambios.
 
-## 5. Estandares de Git y Commits
-* **Idioma:** Mensajes de commit y descripciones siempre en **inglés**.
-* **Formato:** Usa *Conventional Commits* (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`).
-* **Integridad:** Prohibido usar `git commit --amend` o reescribir historial en ramas remotas salvo petición expresa.
+## Cierre y commits
 
-## 6. Sincronizacion del Tablero Project
-* Actualiza el campo **Status** del Project de forma síncrona con el estado real del PR y la Issue. Los valores del tablero son:
-  * **Backlog** — This item hasn't been started.
-  * **Ready** — This is ready to be picked up.
-  * **In progress** — This is actively being worked on.
-  * **In review** — This item is in review.
-  * **Done** — This has been completed.
-* Flujo típico: `Backlog` → `Ready` → `In progress` → `In review` → `Done` (ajusta según el punto en el que esté el trabajo).
+No hagas `git push` ni PR al acabar código salvo petición explícita o acuerdo en sesión. PR: `Closes #ID` o `Refs #ID`. Commits y descripciones en **inglés**; Conventional Commits (`feat:`, `fix:`, …). Si la rama sigue `feature/<ID>-…`, usa ese **mismo `#ID`** en el mensaje para asociar el commit al issue. Sin `git commit --amend` ni reescritura de historial remoto salvo petición expresa.
 
-## 7. Troubleshooting de Tooling
-* Si detectas errores de permisos o scopes de GitHub CLI (`project`, `read:project`), solicita al usuario ejecutar `gh auth refresh` o el comando de autenticación correspondiente antes de reintentar.
+## Project: Status
+
+Mantén **Status** alineado con la realidad. Valores: **Backlog**, **Ready**, **In progress**, **In review**, **Done**. Flujo típico en ese orden.
+
+## Project: Priority, Size, Estimate, fechas
+
+Además de Status, rellenar desde la IA cuando aplique: **Priority** y **Size** (single select) — proponer tras entender alcance e impacto, alinear vocabulario con el tablero. **Estimate** (número), **Start date** y **Target date** — solo con acuerdo explícito del usuario o política del equipo; no inventar fechas ni números.
+
+CLI: `gh project list --owner cloudflax` (project id); `gh project field-list <n> --owner cloudflax` (field ids y option ids); localizar `item-id` con `gh project item-list`. Un campo por comando: `gh project item-edit --project-id … --id <item-id> --field-id …` + `--single-select-option-id …` | `--number …` | `--date YYYY-MM-DD` | `--clear`.
+
+Orden sugerido: crear issue → enlace al project → Priority/Size cuando el alcance esté claro → Estimate/fechas si hay criterio.
+
+## Tooling
+
+Errores de permisos o scopes (`project`, `read:project`): pedir al usuario `gh auth refresh` (u auth adecuada) antes de reintentar.
