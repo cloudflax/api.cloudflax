@@ -8,14 +8,13 @@ Abre y lee el contenido de una **referencia solo cuando aplique** a la tarea (p.
 
 | Acción | Referencia |
 |--------|------------|
-| API, errores, JSON, tests | [CONVENTIONS.md](./CONVENTIONS.md) |
-| Stack, capas, middleware, migraciones | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Entorno, `make`, árbol del repo | [README.md](./README.md) |
+| Stack, capas, middleware, migraciones | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| API, errores, JSON, tests | [CONVENTIONS.md](./CONVENTIONS.md) |
+| Issues, ramas, PR, commits | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
 | Nivel y foco de tus respuestas | [SKILLS.md](./SKILLS.md) |
 | Contrato auth (JWT, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
 | Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
-| Una feature concreta | `internal/{feature}/README.md` |
-| Issues, ramas, PR, commits | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
 
 ### Obligaciones
 
