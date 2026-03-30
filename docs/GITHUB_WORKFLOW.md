@@ -12,7 +12,9 @@ Ante trabajo trazable (feature, cambio de comportamiento, refactor relevante), *
 
 ## Issues y ramas
 
-Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nombre del project exacto). Cuerpo con objetivos técnicos y criterios de aceptación. Rama: `feature/<ID_ISSUE>-<slug>`; el `#ID` debe existir antes. Ramas dedicadas para revisiones o paralelismo; no forzar para micro-cambios.
+Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nombre del project exacto). Cuerpo con objetivos y criterios de aceptación. Rama: `feature/<ID_ISSUE>-<slug>`; el `#ID` debe existir antes. Ramas dedicadas para revisiones o paralelismo; no forzar para micro-cambios.
+
+**Primera creación (misma pasada):** issue con `--assignee cloudflax` y `--label …` si el CLI lo permite; en el project, **Priority** y **Size** siempre con valor (no dejar el select vacío). **Estimate** y fechas solo con criterio o acuerdo; si no hay, indicarlo en el cuerpo — no inventar. Assignee alternativo si `cloudflax` no aplica en el org.
 
 ## Cierre y commits
 
@@ -24,11 +26,7 @@ Mantén **Status** alineado con la realidad. Valores: **Backlog**, **Ready**, **
 
 ## Project: Priority, Size, Estimate, fechas
 
-Además de Status, rellenar desde la IA cuando aplique: **Priority** y **Size** (single select) — proponer tras entender alcance e impacto, alinear vocabulario con el tablero. **Estimate** (número), **Start date** y **Target date** — solo con acuerdo explícito del usuario o política del equipo; no inventar fechas ni números.
-
-CLI: `gh project list --owner cloudflax` (project id); `gh project field-list <n> --owner cloudflax` (field ids y option ids); localizar `item-id` con `gh project item-list`. Un campo por comando: `gh project item-edit --project-id … --id <item-id> --field-id …` + `--single-select-option-id …` | `--number …` | `--date YYYY-MM-DD` | `--clear`.
-
-Orden sugerido: crear issue → enlace al project → Priority/Size cuando el alcance esté claro → Estimate/fechas si hay criterio.
+CLI: `gh project list --owner cloudflax` → `gh project field-list <n> --owner cloudflax` → `item-id` vía `gh project item-list`. Editar: `gh project item-edit --project-id … --id <item-id> --field-id …` + `--single-select-option-id …` | `--number …` | `--date YYYY-MM-DD` | `--clear`. Issue: `gh issue edit <n> --add-assignee cloudflax --add-label "<label>"`.
 
 ## Tooling
 
