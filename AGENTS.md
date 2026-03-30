@@ -15,6 +15,7 @@ Abre y lee el contenido de una **referencia solo cuando aplique** a la tarea (p.
 | Nivel y foco de tus respuestas | [SKILLS.md](./SKILLS.md) |
 | Contrato auth (JWT, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
 | Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
+| Comentarios Go (sin En/Es en doc de `package`; En/Es solo en declaraciones, no en sentencias internas) | [`.cursor/rules/go-bilingual-comments.mdc`](./.cursor/rules/go-bilingual-comments.mdc) (siempre activo en Cursor) |
 
 ### Obligaciones
 
@@ -22,10 +23,11 @@ Abre y lee el contenido de una **referencia solo cuando aplique** a la tarea (p.
 2. Si tocas el modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`); el flujo está en [ARCHITECTURE.md](./ARCHITECTURE.md).
 3. GitHub: sigue [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) (matriz al inicio). No hagas `push` ni abras PR salvo petición explícita; los commits, en inglés, Conventional, con `Refs`/`Closes` cuando aplique.
 4. Usa **`slog`** estructurado; no escribas passwords, tokens ni PII en logs.
+5. Siempre que crees código, documenta según [`.cursor/rules/go-bilingual-comments.mdc`](./.cursor/rules/go-bilingual-comments.mdc).
 
 ### Si no abres otro doc
 
-Mantén el código en inglés; encadena errores con `fmt.Errorf("...: %w", err)`; secretos solo vía entorno; listados paginados y códigos HTTP según [CONVENTIONS.md](./CONVENTIONS.md).
+Mantén el **código** en inglés (identificadores, mensajes de error expuestos por la API, etc.); encadena errores con `fmt.Errorf("...: %w", err)`; secretos solo vía entorno; listados paginados y códigos HTTP según [CONVENTIONS.md](./CONVENTIONS.md).
 
 ### Cómo respondes al humano
 
