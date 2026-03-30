@@ -1,90 +1,36 @@
-## Agents — Cloudflax API (Backend)
+## Agents | Cloudflax - Backend
 
-Este documento establece las directrices operativas que deben seguir los agentes de Cursor para garantizar la robustez, seguridad y escalabilidad de la API de Cloudflax.
+Instrucciones para quien ejecuta tareas en este repo (agente). Prioriza la lista de obligaciones; la tabla enlaza el detalle.
 
-## Stack tecnológico
+Abre y lee el contenido de una **referencia solo cuando aplique** a la tarea (p. ej. auth → `AUTH_INTEGRATION`, GitHub → `GITHUB_WORKFLOW`). No recorras ni cargues documentación que no necesites.
 
-- **Lenguaje**: Go 1.25
-- **Framework**: Fiber v3
-- **ORM**: GORM (PostgreSQL)
-- **Observabilidad**: slog (Structured Logging)
+### Acción → referencia
 
-## Convenciones de Código y Naming
+| Acción | Referencia |
+|--------|------------|
+| Entorno, `make`, árbol del repo | [README.md](./README.md) |
+| Stack, capas, middleware, migraciones | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| API, errores, JSON, tests | [CONVENTIONS.md](./CONVENTIONS.md) |
+| Issues, ramas, PR, commits | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
+| Nivel y foco de tus respuestas | [SKILLS.md](./SKILLS.md) |
+| Contrato auth (JWT, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
+| Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
+| Comentarios Go (sin En/Es en doc de `package`; En/Es solo en declaraciones, no en sentencias internas) | [`.cursor/rules/go-bilingual-comments.mdc`](./.cursor/rules/go-bilingual-comments.mdc) (siempre activo en Cursor) |
 
-- **Idioma**: El código fuente, logs y mensajes de error deben ser estrictamente en **inglés**.
-- **Naming CRUD**: Sigue el patrón `List{Resource}`, `Get{Resource}`, `Create{Resource}`, `Update{Resource}`.
-- **Funciones**: Mantén una lógica simple; máximo ~50 líneas por función y no más de 4 parámetros.
+### Obligaciones
 
-## Arquitectura y Datos
+1. Ejecuta **`make lint`** y **`make test`** antes de considerar el trabajo terminado.
+2. Si tocas el modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`); el flujo está en [ARCHITECTURE.md](./ARCHITECTURE.md).
+3. GitHub: sigue [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) (matriz al inicio). No hagas `push` ni abras PR salvo petición explícita; los commits, en inglés, Conventional, con `Refs`/`Closes` cuando aplique.
+4. Usa **`slog`** estructurado; no escribas passwords, tokens ni PII en logs.
+5. Siempre que crees código, documenta según [`.cursor/rules/go-bilingual-comments.mdc`](./.cursor/rules/go-bilingual-comments.mdc).
 
-- **Estructura de Carpetas**: Implementa cada recurso en `internal/{recurso}/` con sus capas correspondientes:
-  - `model.go`: Definición de estructuras y tags de GORM.
-  - `repository.go`: Consultas directas a la base de datos.
-  - `service.go`: Lógica de negocio y validaciones.
-  - `handler.go`: Controladores de Fiber (entrada/salida).
-- **Gestión de Errores**: Usa `fmt.Errorf` con el verbo `%w` para mantener la trazabilidad. Nunca ignores un error.
-- **Migraciones**: Si modificas un modelo, registra la migración en `database.RunMigrations()` dentro de `cmd/api/main.go`.
+### Si no abres otro doc
 
-## Seguridad operativa y herramientas
+Mantén el **código** en inglés (identificadores, mensajes de error expuestos por la API, etc.); encadena errores con `fmt.Errorf("...: %w", err)`; secretos solo vía entorno; listados paginados y códigos HTTP según [CONVENTIONS.md](./CONVENTIONS.md).
 
-- **Logs**: Usa `slog`. Queda terminantemente prohibido loguear datos sensibles (passwords, tokens, PII).
-- **Makefile**: Usa `make lint` y `make test` como validación obligatoria antes de proponer cambios.
-- **Entorno**: El entorno de trabajo es `/app` dentro de un Devcontainer.
+### Cómo respondes al humano
 
+Redacta en **español**, de forma concisa. Menciona explícitamente si el cambio afecta **`.env`** (o configuración por entorno) o exige **migración** de base de datos.
 
-## Handlers HTTP y respuestas
-
-- **Consistencia en respuestas**: Estandariza la forma de responder errores y éxitos (status code + payload JSON con `message`, `data` opcional y/o `error`).
-- **Validación de entrada**: Valida siempre parámetros de ruta, query y body en la capa `handler` o `service` antes de llamar al repositorio.
-- **Errores HTTP**: Mapea los errores de negocio a códigos HTTP claros (`400` validación, `401`/`403` auth/autorización, `404` no encontrado, `409` conflicto, `500` errores inesperados).
-
-## Logging y observabilidad
-
-- **Niveles de log**: Usa `Debug` para detalle de desarrollo, `Info` para flujos exitosos importantes, `Warn` para situaciones anómalas recuperables y `Error` para fallos que requieren atención.
-- **Contexto estructurado**: Incluye siempre campos relevantes (por ejemplo `request_id`, `user_id`, `resource`, `operation`) usando `slog` con atributos estructurados.
-- **Trazabilidad**: Propaga un identificador de correlación por request (por ejemplo, `X-Request-ID`) y loguéalo en todos los puntos clave.
-- **No PII**: Nunca incluyas en logs passwords, tokens, credenciales, ni datos sensibles de usuarios.
-
-## Pruebas
-
-- **Cobertura mínima**: Cada nueva funcionalidad debe incluir tests de unidad para servicios y, cuando aplique, tests de integración para repositorios y endpoints críticos.
-- **make test**: Ejecuta `make test` antes de abrir un PR; no se deben introducir fallos en el pipeline de tests.
-- **Aislamiento**: Evita dependencias externas no deterministas en tests (red, tiempos reales, etc.); usa dobles de prueba o fixtures controlados.
-
-## Acceso a datos y rendimiento
-
-- **Paginación obligatoria**: En listados (`List{Resource}`) implementa paginación por defecto para evitar lecturas masivas en memoria.
-- **Consultas eficientes**: Revisa índices y uso de `SELECT` específicos; evita `SELECT *` en consultas críticas.
-- **Transacciones**: Usa transacciones en el repositorio cuando varias operaciones deban ser atómicas.
-
-## Seguridad
-
-- **Validación y saneamiento**: Valida y normaliza toda entrada externa antes de usarla en queries o lógica sensible.
-- **Principio de mínimo privilegio**: Diseña servicios y consultas asumiendo el menor conjunto posible de permisos y datos expuestos.
-- **Gestión de secretos**: Nunca hardcodees secretos o credenciales en el repositorio; deben provenir de variables de entorno o sistemas seguros.
-
-## Flujo de trabajo y PRs
-
-- **Antes de abrir un PR**:
-  - Ejecuta `make lint` y `make test` y asegúrate de que pasan.
-  - Revisa que no haya logs de depuración temporales ni comentarios obsoletos.
-- **Durante la revisión**:
-  - Explica brevemente el propósito del cambio y cualquier decisión no obvia.
-  - Acepta y responde comentarios en inglés dentro del código, manteniendo la descripción funcional en español en la conversación con el usuario.
-
-### GitHub: issue, proyecto `@api.cloudflax`, rama y PR (cuando aplique)
-
-Para trabajo **trazable** (features, cambios de comportamiento, refactors relevantes), sigue este flujo **sin tratarlo como obligatorio para cada edición mínima**.
-
-- **¿Rama nueva?** Abre rama dedicada **solo cuando aporte** (varios commits, revisión aislada, riesgo en `main`, trabajo en paralelo). Los ajustes triviales acordados pueden integrarse sin rama si el equipo lo permite; no fuerces rama por defecto.
-- **Issue**: Crea la tarea en `cloudflax/api.cloudflax` con objetivos técnicos y criterios de aceptación. Enlázala al project de organización **`@api.cloudflax`** con `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (el título del project debe coincidir **exactamente** con GitHub).
-- **Etiquetas y tablero**: Asigna labels del repo cuando corresponda y mantén los campos del project alineados con la realidad (**Status**, Priority, Size, Estimate, fechas): p. ej. *Ready* cuando el código está listo para PR, *In review* al abrir el PR, *Done* tras merge a `main`.
-- **Nombre de rama** (si usas rama): `feature/<número-de-issue>-<slug-corto-en-kebab>` una vez conocido el `#` de la issue (ej. `feature/1-enhance-jwt-handling-config`). Evita slugs genéricos sin número si la issue ya existe.
-- **Commits**: Mensajes en **inglés**; convención tipo Conventional Commits cuando encaje (`feat`, `fix`, etc.). La vinculación fuerte a la issue va en el **PR**: incluye `Closes #N` o `Refs #N` en la descripción. Repetir `#N` en cada commit es **opcional**; si la rama ya está en remoto, no reescribas historia con `--amend` salvo petición explícita.
-- **PR**: Crea el PR contra `main` con resumen del cambio y `Closes #N` cuando el merge deba cerrar la issue.
-- **`gh` y permisos**: Para issues y Projects hace falta token con scopes adecuados (`project`, `read:project`). Si `gh` pide ampliar permisos o login interactivo, **indícalo al usuario** para que ejecute `gh auth refresh` (u otro paso interactivo); no sustituyas tú ese login en el agente.
-
-## Flujo de Comunicación
-
-- Explica los cambios en español de forma concisa.
-- Informa proactivamente si los cambios afectan al archivo `.env` o requieren una migración de base de datos.
+**Stack:** Go 1.25, Fiber v3, GORM, PostgreSQL, `slog` — ampliar en [ARCHITECTURE.md](./ARCHITECTURE.md).

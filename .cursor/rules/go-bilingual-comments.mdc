@@ -1,0 +1,17 @@
+---
+description: Go — no En/Es on package doc; bilingual En/Es on declarations only; ≤15 words per bilingual line
+alwaysApply: true
+---
+
+No uses `// En:`/`// Es:` en doc de `package`.
+Arriba de `package`: comentario simple o nada.
+
+Usa `// En:` + `// Es:` solo en declaraciones:
+`type`, `func`, métodos, `const`/`var` de paquete (incluye grupos).
+No en sentencias internas (`if`, `for`, `return`, asignaciones).
+
+Cada línea `En/Es`: máximo 15 palabras (contadas tras `En:`/`Es:`).
+
+Ignora build tags, `//nolint`, y líneas generated.
+Identificadores, tags JSON/query y strings de API: inglés.
+Ejemplo: `internal/auth/dto.go`.
