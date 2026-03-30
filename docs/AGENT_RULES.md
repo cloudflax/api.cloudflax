@@ -1,23 +1,19 @@
 # Reglas del agente | Cloudflax Backend
 
-Normas que aplican a quien implementa en este repo (Cursor u otro agente). El resumen enlaza desde [AGENTS.md](../AGENTS.md).
+[AGENTS.md](../AGENTS.md) apunta aquí para obligaciones; abre otros docs solo si la tarea lo exige.
 
-## Obligaciones
+**Antes de cerrar:** `make lint` y `make test`.
 
-1. **Calidad antes de cerrar**: ejecuta `make lint` y `make test` antes de considerar el trabajo terminado.
-2. **Modelos GORM**: si cambias o añades un modelo, incluye su tipo en `database.RunMigrations(...)` en `cmd/api/main.go` (AutoMigrate vía `internal/shared/database`). Flujo: [ARCHITECTURE.md](../ARCHITECTURE.md).
-3. **GitHub**: sigue [GITHUB_WORKFLOW.md](./GITHUB_WORKFLOW.md). No hagas `push` ni abras PR salvo petición explícita. Commits en inglés, Conventional Commits, con `Refs` / `Closes` cuando aplique (detalle allí).
-4. **Logs**: usa `slog` estructurado; no registres contraseñas, tokens ni PII.
-5. **Código nuevo**: documenta según [`.cursor/rules/go-bilingual-comments.mdc`](../.cursor/rules/go-bilingual-comments.mdc).
+**GORM:** modelo nuevo o modificado → registrar el tipo en `database.RunMigrations(...)` (`cmd/api/main.go`). Detalle: [ARCHITECTURE.md](../ARCHITECTURE.md).
 
-## Si no consultas otro documento
+**GitHub:** [GITHUB_WORKFLOW.md](./GITHUB_WORKFLOW.md). Sin `push` ni PR salvo petición explícita. Commits en inglés, Conventional Commits; `Refs` / `Closes` cuando toque.
 
-Mantén el **código** en inglés (identificadores, mensajes de error expuestos por la API, etc.). Encadena errores con `fmt.Errorf("...: %w", err)`. Secretos solo vía variables de entorno. Listados paginados y códigos HTTP: [CONVENTIONS.md](../CONVENTIONS.md).
+**Logs:** `slog` estructurado; nunca contraseñas, tokens ni PII.
 
-## Respuesta al humano
+**Comentarios Go:** [`.cursor/rules/go-bilingual-comments.mdc`](../.cursor/rules/go-bilingual-comments.mdc).
 
-Redacta en **español**, de forma concisa. Indica explícitamente si el cambio afecta **`.env`** (u otra configuración por entorno) o si exige **migración** de base de datos.
+**Código (siempre):** inglés en identificadores y errores expuestos por la API; encadenar con `fmt.Errorf("…: %w", err)`; secretos solo vía env. Paginación y códigos HTTP: [CONVENTIONS.md](../CONVENTIONS.md).
 
-## Stack (recordatorio)
+**Respuesta al humano:** español, conciso. Indicar si el cambio afecta **`.env`** (u otra config por entorno) o exige **migración** de base de datos.
 
-Go 1.25, Fiber v3, GORM, PostgreSQL, `slog`. Detalle: [ARCHITECTURE.md](../ARCHITECTURE.md).
+**Stack:** Go 1.25, Fiber v3, GORM, PostgreSQL, `slog` — [ARCHITECTURE.md](../ARCHITECTURE.md).
