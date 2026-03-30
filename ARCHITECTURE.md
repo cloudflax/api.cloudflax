@@ -1,61 +1,39 @@
 # Architecture — Cloudflax API (Backend)
 
-Documentación de la estructura, patrones y flujo de datos del backend.
+Estructura, patrones y flujo de datos del backend.
 
----
+## Stack
 
-## 1. Stack Tecnológico
+Go (feature-driven), Fiber v3, GORM + PostgreSQL; tests unitarios e integración (PostgreSQL/SQLite).
 
-- **Lenguaje**: Go (Estructura feature-driven).
-- **Framework**: Fiber v3.
-- **ORM**: GORM con PostgreSQL.
-- **Testing**: Unitarios y de integración con PostgreSQL/SQLite.
+## Directorios (`internal/`)
 
----
+- **`bootstrap/`**: Config, servidor, arranque.
+- **`{feature}/`**: `handler`, `service`, `repository`, `model`, `dto`, `routes`; opcional `validator` u helpers.
+- **`shared/`**: `database` (conexión, migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator`, `verificationnotify` (Lambda correo verificación), utilidades.
 
-## 2. Estructura de Directorios (Feature-driven)
+No todo feature necesita todos los archivos; lo mínimo suele ser `handler`, `repository`, `model`, `routes`.
 
-Cada funcionalidad vive en su propia carpeta dentro de `internal/`:
+## Capas
 
-- **`internal/bootstrap/`**: Configuración, servidor y arranque de la app.
-- **`internal/{feature}/`**: Puede contener `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go` y opcionalmente `validator.go` u otros helpers específicos del recurso.
-- **`internal/shared/`**: Código común: `database` (conexión y migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator`, `verificationnotify` (invocación Lambda para correo de verificación) y otras utilidades compartidas.
+**Flujo:** `Request → Middleware → Handler → Service → Repository → DB`.
 
-No todos los features requieren todos estos archivos; un recurso simple puede usar solo `handler.go`, `repository.go`, `model.go` y `routes.go`.
+| Capa | Rol |
+|------|-----|
+| **Handler** | HTTP (Fiber): parseo y respuestas. Sin negocio ni DB directa; delega al Service. |
+| **Service** | Negocio y orquestación. Sin Fiber ni status HTTP; modelos y errores de dominio. |
+| **Repository** | GORM. Sin respuestas HTTP. |
+| **Validación** | DTOs / validadores antes del Service. |
 
----
+## Errores y middleware
 
-## 3. Patrones y Capas del Sistema
+Service/Repository devuelven errores de dominio (`ErrNotFound`, etc.); el Handler mapea a HTTP y JSON. Solo el Handler conoce transporte.
 
-- **Flujo de Datos**: `Request → Middleware → Handler → Service → Repository → DB`.
-- **Responsabilidades**:
-  - **Handler**: Solo HTTP (Fiber); parseo de requests y formateo de respuestas.
-  - **Service**: Lógica de negocio y orquestación; independiente de HTTP.
-  - **Repository**: Abstracción de acceso a datos (GORM).
-- **Validación**: Uso de DTOs y lógica de validación previa al Service.
-- **Reglas de dependencia entre capas**:
-  - **Handler**: No debe contener lógica de negocio ni acceder directamente a la base de datos; siempre delega en el Service.
-  - **Service**: No debe depender de HTTP (ni Fiber ni códigos de estado); trabaja con modelos de dominio y errores de dominio.
-  - **Repository**: No debe construir respuestas HTTP; solo se encarga del acceso a datos y de devolver errores de DB o de dominio.
+**Orden:** Logger → Request ID → Recovery → CORS → Auth (JWT). Logger (método, path, status, duración); Request ID (`X-Request-ID`); Recovery (panic → 500); CORS; Auth en rutas protegidas.
 
----
+## Desarrollo
 
-## 4. Manejo de Errores y Seguridad
-
-- **Errores**: Service/Repository devuelven errores de dominio (por ejemplo `ErrNotFound`, `ErrDuplicateEmail`); el Handler captura estos errores, los mapea a códigos HTTP coherentes y formatea la respuesta JSON.
-- **Restricción**: Ni Service ni Repository deben crear respuestas HTTP ni depender de Fiber; solo el Handler conoce detalles de transporte.
-- **Middleware Stack**: Logger → Request ID → Recovery → CORS → Auth (JWT).
-  - **Logger**: Registra método, path, status y duración de cada request.
-  - **Request ID**: Asigna y propaga un identificador (`X-Request-ID`) para facilitar el tracing entre logs.
-  - **Recovery**: Captura `panic` y evita la caída del servidor, devolviendo un error 500 controlado.
-  - **CORS**: Configura los encabezados para permitir el consumo desde el frontend autorizado.
-  - **Auth**: Valida JWT y restringe el acceso a rutas protegidas según la configuración de autorización.
-
----
-
-## 5. Workflow del Desarrollador
-
-1. **Implementar**: Seguir el flujo de capas definido y registrar rutas en `bootstrap/server/routes.go`.
-2. **Migrar**: Registrar cambios de modelos en `database.RunMigrations()`.
-3. **Validar**: Ejecución obligatoria de `make lint` y `make test`.
-4. **Testear**: Añadir tests unitarios por capa (Handler, Service, Repository) y tests de integración con base de datos (PostgreSQL o SQLite in-memory), ubicando los archivos `*_test.go` junto al código del feature.
+1. Capas anteriores; rutas en `bootstrap/server/routes.go`.
+2. Migraciones: `database.RunMigrations()`.
+3. `make lint` y `make test`.
+4. `*_test.go` junto al feature (unit por capa; integración PostgreSQL o SQLite in-memory).
