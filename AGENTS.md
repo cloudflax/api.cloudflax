@@ -1,56 +1,35 @@
-## Agents — Cloudflax API (Backend)
+## Agents | Cloudflax - Backend
 
-Este fichero es el **punto de entrada** para agentes de Cursor: prioridades operativas, checklist y enlaces al detalle. La normativa larga vive en los documentos enlazados; evita duplicar aquí lo que ya está cubierto allí.
+Instrucciones para quien ejecuta tareas en este repo (agente). Prioriza la lista de obligaciones; la tabla enlaza el detalle.
 
----
+Abre y lee el contenido de una **referencia solo cuando aplique** a la tarea (p. ej. auth → `AUTH_INTEGRATION`, GitHub → `GITHUB_WORKFLOW`). No recorras ni cargues documentación que no necesites.
 
-### 1. Mapa de documentación (léelo según la tarea)
+### Acción → referencia
 
-| Necesitas… | Documento |
-|------------|-----------|
-| Naming CRUD, estructura `internal/{feature}/`, handler → service → repository, errores de dominio, formato JSON de API, tests de handler | [CONVENTIONS.md](./CONVENTIONS.md) |
-| Stack, capas, flujo de datos, middleware (logger, request ID, auth), workflow de implementación y migraciones | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| Descripción del producto, árbol del repo, entorno, `make` y variables | [README.md](./README.md) |
-| Nivel técnico esperado del agente y foco de respuestas | [SKILLS.md](./SKILLS.md) |
-| Contrato de auth para frontends (JWT, refresh, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
+| Acción | Referencia |
+|--------|------------|
+| API, errores, JSON, tests | [CONVENTIONS.md](./CONVENTIONS.md) |
+| Stack, capas, middleware, migraciones | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Entorno, `make`, árbol del repo | [README.md](./README.md) |
+| Nivel y foco de tus respuestas | [SKILLS.md](./SKILLS.md) |
+| Contrato auth (JWT, cookies) | [AUTH_INTEGRATION.md](./AUTH_INTEGRATION.md) |
 | Cuentas y titularidad de datos | [docs/ACCOUNTS_AND_DATA_OWNERSHIP.md](./docs/ACCOUNTS_AND_DATA_OWNERSHIP.md) |
-| Detalle por feature (modelo, errores HTTP, notas) | `internal/{feature}/README.md` (p. ej. [internal/auth/README.md](./internal/auth/README.md), [internal/user/README.md](./internal/user/README.md)) |
-| Issue, project `@api.cloudflax`, matriz de trazabilidad (issue+rama / solo issue / **solo commits** en `feature/<ID>-…` con `Refs`/`Closes #ID`), PRs y **cadencia en equipo** | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
+| Una feature concreta | `internal/{feature}/README.md` |
+| Issues, ramas, PR, commits | [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) |
 
----
+### Obligaciones
 
-### 2. Checklist antes de proponer cambios
+1. Ejecuta **`make lint`** y **`make test`** antes de considerar el trabajo terminado.
+2. Si tocas el modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`); el flujo está en [ARCHITECTURE.md](./ARCHITECTURE.md).
+3. GitHub: sigue [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) (matriz al inicio). No hagas `push` ni abras PR salvo petición explícita; los commits, en inglés, Conventional, con `Refs`/`Closes` cuando aplique.
+4. Usa **`slog`** estructurado; no escribas passwords, tokens ni PII en logs.
 
-- Ejecuta **`make lint`** y **`make test`**; no dejes el pipeline roto.
-- Cambio de modelo GORM: registra la migración en **`database.RunMigrations()`** (`cmd/api/main.go`). Ver flujo en [ARCHITECTURE.md](./ARCHITECTURE.md).
-- Trabajo **trazable:** [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md): pregunta al inicio la **matriz** (issue+rama, solo issue, o solo commits en rama ya existente `feature/<ID>-…` vinculando `#ID` en el mensaje). Si hace falta issue nuevo: **issue primero y rama después**. **No** hagas `push` ni PR hasta petición explícita (el revisor puede iterar en el código contigo); los **commits** cuando lo pidas o encaje el escenario acordado (inglés, Conventional Commits, `Refs`/`Closes` al `#ID` de la rama si aplica).
-- **Logs:** `slog` estructurado; no registrar passwords, tokens ni PII. Niveles y correlación: ver capa de middleware en [ARCHITECTURE.md](./ARCHITECTURE.md) y respuestas de error en [CONVENTIONS.md](./CONVENTIONS.md).
+### Si no abres otro doc
 
----
+Mantén el código en inglés; encadena errores con `fmt.Errorf("...: %w", err)`; secretos solo vía entorno; listados paginados y códigos HTTP según [CONVENTIONS.md](./CONVENTIONS.md).
 
-### 3. Reglas compactas (si no abres otro doc)
+### Cómo respondes al humano
 
-- **Idioma en código:** inglés (fuente, comentarios, mensajes de error y logs).
-- **Errores:** `fmt.Errorf("...: %w", err)`; no ignorar errores.
-- **Listados:** paginación por defecto en `List{Resource}`; forma de respuesta y `meta` en [CONVENTIONS.md](./CONVENTIONS.md).
-- **Secretos:** solo variables de entorno o sistemas seguros; nunca en el repositorio.
-- **HTTP:** validación en handler/service; mapa de códigos (`400` / `401` / `403` / `404` / `409` / `500`) alineado con [CONVENTIONS.md](./CONVENTIONS.md).
+Redacta en **español**, de forma concisa. Menciona explícitamente si el cambio afecta **`.env`** (o configuración por entorno) o exige **migración** de base de datos.
 
----
-
-### 4. GitHub: issue, proyecto `@api.cloudflax`, rama y PR
-
-El detalle operativo (comandos `gh`, nombres de rama, PR, tablero), la **matriz de inicio** (incluida la vía *solo commits* con `#ID` tomado de `feature/<ID>-…`) y la **cadencia colaborativa** (confirmación, orden issue→rama, commits/`push`/PR cuando el usuario lo pida) están en **[docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md)**.
-
----
-
-### 5. Flujo de comunicación con el usuario
-
-- Explica los cambios en **español**, de forma concisa.
-- Indica si el cambio toca **`.env`** o requiere **migración** de base de datos.
-
----
-
-### 6. Stack (recordatorio)
-
-Go 1.25, Fiber v3, GORM + PostgreSQL, observabilidad con **slog**. Detalle en [ARCHITECTURE.md](./ARCHITECTURE.md) y [README.md](./README.md).
+**Stack:** Go 1.25, Fiber v3, GORM, PostgreSQL, `slog` — ampliar en [ARCHITECTURE.md](./ARCHITECTURE.md).
