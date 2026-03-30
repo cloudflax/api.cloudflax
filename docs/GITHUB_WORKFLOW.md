@@ -18,7 +18,7 @@ Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nom
 
 ## Cierre y commits
 
-No hagas `git push` ni PR al acabar código salvo petición explícita o acuerdo en sesión. PR: `Closes #ID` o `Refs #ID`. Commits y descripciones en **inglés**; Conventional Commits (`feat:`, `fix:`, …). Si la rama sigue `feature/<ID>-…`, usa ese **mismo `#ID`** en el mensaje para asociar el commit al issue. Sin `git commit --amend` ni reescritura de historial remoto salvo petición expresa.
+No hagas `git push` ni PR al acabar código salvo petición explícita o acuerdo en sesión. PR: `Closes #ID` o `Refs #ID`. Commits y descripciones en **inglés**; Conventional Commits (`feat:`, `fix:`, …). Antes de crear cada commit, **lee el nombre de la rama actual** para obtener el ID de la tarea (por ejemplo `feature/3-agents-md-hub` -> `#3`) y usa ese **mismo `#ID`** en el cuerpo o pie del commit con `Refs #ID` o `Closes #ID` según corresponda. Sin `git commit --amend` ni reescritura de historial remoto salvo petición expresa.
 
 ## Project: Status
 
