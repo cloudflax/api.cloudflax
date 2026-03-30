@@ -1,33 +1,114 @@
-# GitHub Workflow & Traceability (`cloudflax/api.cloudflax`)
+# GitHub: flujo y trazabilidad (`cloudflax/api.cloudflax`)
 
-Agente integrado en este repo: trazabilidad vía GitHub Issues/Project y ramas. No ejecutes Issue + rama + PR sin señal del usuario.
+Este documento define **qué hacer en orden** cuando el trabajo debe quedar enlazado a GitHub (issues, proyecto, ramas, commits). Sirve para humanos y para agentes (IA).
 
-## Inicio
+**Regla previa:** no abras issue, rama ni PR **sin indicación del usuario**. Calidad de código (`make lint`, `make test`, GORM, etc.): [AGENT_RULES.md](./AGENT_RULES.md).
 
-Ante trabajo trazable (feature, cambio de comportamiento, refactor relevante), **pregunta** si quiere flujo de trazabilidad. Matriz:
+---
 
-- **Sí, rama + trazabilidad** → crear Issue en `@api.cloudflax`, anotar `#ID`, rama `feature/<ID>-<slug-kebab>`.
-- **Solo crear tarea** → solo Issue en el project; sin rama hasta nueva orden.
-- **Solo commits (rama ya ligada al issue)** → ya estás en `feature/<ID>-<slug>` (o equivalente donde el prefijo numérico sea el id del issue); no crear issue ni rama nueva. Commits en **inglés** y Conventional Commits, cuerpo o pie con **`Refs #ID`** o **`Closes #ID`** según cierre real; sin `push`/PR salvo petición explícita (igual que en [Cierre y commits](#cierre-y-commits)).
+## 1. Modelo de ramas (referencia)
 
-## Issues y ramas
+| Rama / prefijo | Rol | En este repo |
+|----------------|-----|--------------|
+| `develop` | Integración habitual | Base de `feature/…` y **destino del PR** en trabajo normal. |
+| `main` | Estable / despliegue | Los features **no** apuntan aquí; PR va a `develop`. Hotfixes según acuerdo del equipo. |
+| `feature/<ID>-<slug>` | Tarea acotada al issue | `<ID>` = número del issue en GitHub. |
+| `release/<versión>` | Preparación de versión (opcional) | Política de equipo; suele mezclar en `main` y `develop`. |
+| `hotfix/<ID>-<slug>` | Urgencia sobre producción | Desde `main`; PR típico a `main` y **reintegrar en `develop`**. |
 
-Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nombre del project exacto). Cuerpo con objetivos y criterios de aceptación. Rama: `feature/<ID_ISSUE>-<slug>`; el `#ID` debe existir antes. Ramas dedicadas para revisiones o paralelismo; no forzar para micro-cambios.
+---
 
-**Primera creación (misma pasada):** issue con `--assignee cloudflax` y `--label …` si el CLI lo permite; en el project, **Priority** y **Size** siempre con valor (no dejar el select vacío). **Estimate** y fechas solo con criterio o acuerdo; si no hay, indicarlo en el cuerpo — no inventar. Assignee alternativo si `cloudflax` no aplica en el org.
+## 2. Decisión con el usuario (antes de tocar GitHub)
 
-## Cierre y commits
+El trabajo en GitHub es una **tubería** de piezas opcionales, en este orden lógico: **issue/project → rama → commits → PR** (y **estado en el tablero** al cerrar el ciclo). No ejecutes una fase si el usuario no la incluyó en el alcance de la sesión.
 
-No hagas `git push` ni PR al acabar código salvo petición explícita o acuerdo en sesión. PR: `Closes #ID` o `Refs #ID`. Commits y descripciones en **inglés**; Conventional Commits (`feat:`, `fix:`, …). Antes de crear cada commit, **lee el nombre de la rama actual** para obtener el ID de la tarea (por ejemplo `feature/3-agents-md-hub` -> `#3`) y usa ese **mismo `#ID`** en el cuerpo o pie del commit con `Refs #ID` o `Closes #ID` según corresponda. Sin `git commit --amend` ni reescritura de historial remoto salvo petición expresa.
+### 2.1 Prompt copiable (checklist en el chat)
 
-## Project: Status
+Pedí al usuario que **pegue este bloque** en el mensaje y marque con `[x]` lo que aplica (en Cursor y en muchos visores de Markdown podés alternar la casilla con un clic). Lo no marcado se interpreta como **fuera de alcance** salvo que aclare otra cosa.
 
-Mantén **Status** alineado con la realidad. Valores: **Backlog**, **Ready**, **In progress**, **In review**, **Done**. Flujo típico en ese orden.
+```markdown
+**Alcance GitHub para esta tarea** (marcá con [x]):
 
-## Project: Priority, Size, Estimate, fechas
+- [ ] **Issue + project**: crear o actualizar issue en `@api.cloudflax` y campos del tablero (Fase 3).
+- [ ] **Rama**: crear/publicar `feature/<ID>-<slug>` desde `develop` (Fase 4). Si no marcás esto, trabajo en la rama actual.
+- [ ] **Commits**: dejar cambios commiteados con Conventional Commits y `Refs`/`Closes` (Fase 5).
+- [ ] **PR**: push y abrir o actualizar PR hacia la base acordada (Fase 6).
+- [ ] **Tablero al cerrar**: ajustar `Status` del item cuando corresponda (Fase 7).
 
-CLI: `gh project list --owner cloudflax` → `gh project field-list <n> --owner cloudflax` → `item-id` vía `gh project item-list`. Editar: `gh project item-edit --project-id … --id <item-id> --field-id …` + `--single-select-option-id …` | `--number …` | `--date YYYY-MM-DD` | `--clear`. Issue: `gh issue edit <n> --add-assignee cloudflax --add-label "<label>"`.
+Contexto breve (opcional): …
+```
 
-## Tooling
+Si el usuario no usa la checklist, **preguntá en una sola franja** qué marca de la lista anterior necesita; no asumas trazabilidad completa.
 
-Errores de permisos o scopes (`project`, `read:project`): pedir al usuario `gh auth refresh` (u auth adecuada) antes de reintentar.
+### 2.2 De la checklist a las fases
+
+| Qué está marcado | Fases (en orden) | Notas |
+|------------------|------------------|-------|
+| Issue + Rama + Commits + PR (+ tablero) | 3 → 4 → 5 → 6 → 7 | “Trazabilidad completa” típica. |
+| Rama + Commits + PR (+ tablero si aplica) | 4 → 5 → 6 → (7) | Issue ya existe o no se pide en esta sesión. |
+| Commits + PR | 5 → 6 | Ya estás en la rama correcta; no abras rama nueva. |
+| Solo PR | 6 | `push` solo si hace falta; no reescribas historia remota sin orden explícita. |
+| Solo issue / project | 3 | No crees rama hasta nueva orden. |
+| Issue + Rama (sin commits todavía) | 3 → 4 | Dejá Fase 5 para cuando haya cambios listos. |
+| Ya hay rama ligada al issue (`feature/…`, `hotfix/…`) y solo sigue el trabajo | 5 → 6 → (7) | No abras issue ni rama nuevas; alineá con lo marcado en la checklist. |
+
+**Regla:** si algo no está marcado, **no** hagas esa acción en GitHub (misma línea que la regla previa del documento y [AGENT_RULES.md](./AGENT_RULES.md) para `push`/PR).
+
+---
+
+## 3. Crear el issue y ubicarlo en el project
+
+1. **Issue** en el repo `cloudflax/api.cloudflax`, en el project **`@api.cloudflax`** (nombre exacto).  
+   Comando típico: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"`.  
+   **Cuerpo en inglés:** objetivos y criterios de aceptación.
+2. **Asignación y etiquetas:** si el CLI lo permite, `--assignee cloudflax` y `--label …`; si hace falta otro assignee, aplícalo.
+3. **Tablero (sin campos vacíos obligatorios):** `Status`, `Priority`, `Size` y `Estimate` siempre con valor. **Start/Target date** solo con criterio o acuerdo; si no aplican, indícalo en el cuerpo del issue (no inventes fechas).
+
+**Checklist mínimo al dar por creada la pieza en GitHub:** issue en inglés y asignado · labels adecuados · en el project: Status, Priority, Size, Estimate · item enlazado al issue.
+
+---
+
+## 4. Crear la rama (solo si el usuario pidió rama + trazabilidad)
+
+1. Actualiza **`develop`** localmente.
+2. Crea **`feature/<ID_ISSUE>-<slug-kebab>`** desde **`develop`**. El `#ID` debe existir antes en GitHub.  
+   Puedes usar `gh issue develop` si enlaza o crea la rama con base correcta; si la base no es `develop`, créala a mano desde `develop`.
+3. Publica la rama remota y mantenla alineada con el issue/project.
+
+---
+
+## 5. Mientras trabajas: commits
+
+- **Idioma:** mensajes en **inglés**; [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, …).
+- **Enlace al issue:** antes de commitear, **lee el nombre de la rama** para obtener el `#ID` (ej. `feature/3-agents-md-hub` → `#3`). En el **cuerpo o pie** del mensaje usa `Refs #ID` o `Closes #ID` según si el commit cierra el issue o solo lo referencia.
+- **Historial:** sin `git commit --amend` ni reescritura de historial remoto **salvo** petición explícita del usuario.
+
+---
+
+## 6. Push y pull request
+
+- **`git push` y apertura de PR:** solo si el usuario lo pide **explícitamente** o hay acuerdo en la sesión (misma regla que en [AGENT_RULES.md](./AGENT_RULES.md)).
+- **Base del PR:** **`develop`** para features. **`main`** solo para hotfix (u otra política que el equipo deje por escrito).
+- **Descripción del PR:** incluye `Closes #ID` o `Refs #ID` según corresponda.
+
+---
+
+## 7. Estado en el project durante y después del review
+
+- **Status** debe reflejar la realidad. Valores habituales (orden típico): **Backlog** → **Ready** → **In progress** → **In review** → **Done**.
+- **In review:** con PR abierto (p. ej. hacia `develop`).
+- **Done:** cuando el código está mergeado en la rama de integración acordada o liberado según política del equipo.
+
+---
+
+## Apéndice: edición avanzada del project con `gh`
+
+1. `gh project list --owner cloudflax`
+2. `gh project field-list <n> --owner cloudflax`
+3. Obtener `item-id`: `gh project item-list`
+
+Edición: `gh project item-edit --project-id … --id <item-id> --field-id …` con `--single-select-option-id …`, `--number …`, `--date YYYY-MM-DD` o `--clear`. Para el issue: `gh issue edit <n> --add-assignee cloudflax --add-label "<label>"`.
+
+### Permisos
+
+Si fallan permisos o faltan scopes (`project`, `read:project`), pide al usuario `gh auth refresh` (u otra autenticación adecuada) antes de reintentar.

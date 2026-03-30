@@ -1,17 +1,13 @@
 ---
-description: Go — no En/Es on package doc; bilingual En/Es on declarations only; ≤15 words per bilingual line
+description: Comentarios Go bilingües (En/Es) — doc de package sin mezcla; bilingüe solo en declaraciones exportadas.
+globs: "**/*.go"
 alwaysApply: true
 ---
 
-No uses `// En:`/`// Es:` en doc de `package`.
-Arriba de `package`: comentario simple o nada.
+# Comentarios Go (bilingüe En/Es)
 
-Usa `// En:` + `// Es:` solo en declaraciones:
-`type`, `func`, métodos, `const`/`var` de paquete (incluye grupos).
-No en sentencias internas (`if`, `for`, `return`, asignaciones).
+- **Doc de `package`:** una sola lengua en el bloque (español *o* inglés), sin alternancia línea a línea dentro del mismo doc.
+- **Declaraciones exportadas** (`func`, `type`, `const`, `var` visibles fuera del paquete): comentario doc puede ser bilingüe cuando el equipo lo use (p. ej. primera frase EN, segunda ES, o bloques claros separados).
+- **Comentarios en el cuerpo** (dentro de funciones, ramas, bucles): **una sola lengua** por comentario; no mezclar En/Es en comentarios de líneas internas salvo cita literal o término técnico puntual.
 
-Cada línea `En/Es`: máximo 15 palabras (contadas tras `En:`/`Es:`).
-
-Ignora build tags, `//nolint`, y líneas generated.
-Identificadores, tags JSON/query y strings de API: inglés.
-Ejemplo: `internal/auth/dto.go`.
+El código (identificadores, mensajes de error de API) sigue [CONVENTIONS.md](../../CONVENTIONS.md) y [docs/AGENT_RULES.md](../../docs/AGENT_RULES.md).
