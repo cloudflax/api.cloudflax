@@ -1,4 +1,4 @@
-# Skills — Cloudflax API
+# Skills | Cloudflax - Backend
 
 Capacidades y conocimientos esperados para trabajar en este proyecto.
 

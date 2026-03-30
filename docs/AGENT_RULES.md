@@ -1,4 +1,4 @@
-# Reglas del agente | Cloudflax Backend
+# Agent Rules | Cloudflax - Backend
 
 [AGENTS.md](../AGENTS.md) apunta aquí para obligaciones; abre otros docs solo si la tarea lo exige.
 

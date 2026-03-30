@@ -1,4 +1,4 @@
-# Auth Integration — Cloudflax API
+# Auth Integration | Cloudflax - Backend
 
 Documento de referencia para integrar autenticación entre el frontend Next.js y este backend Go/Fiber.
 
