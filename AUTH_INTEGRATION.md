@@ -14,15 +14,100 @@ Documento de referencia para integrar autenticación entre el frontend Next.js y
 El refresh token se almacena **hasheado (SHA-256)** en la tabla `refresh_tokens` de PostgreSQL.
 El access token **nunca** se persiste en base de datos.
 
+**Verificación de email:** `POST /auth/login` y `POST /auth/refresh` solo tienen éxito si el usuario tiene el email verificado. Si no, responden `403` con `EMAIL_VERIFICATION_REQUIRED`.
+
 ---
 
 ## Endpoints
 
 ### Base URL
 
+URL base de **esta API** (no la del frontend Next.js), p. ej. según `PORT` / `APP_URL` en el entorno. En desarrollo suele coincidir con el valor de `.env.example` (p. ej. `http://localhost:3000` si `PORT=3000`).
+
+---
+
+### POST `/auth/register`
+
+Crea usuario con credenciales email/contraseña y envía (si está configurado) el correo de verificación. No devuelve tokens.
+
+**Request:**
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+  "name": "Ada Lovelace",
+  "email": "user@example.com",
+  "password": "password123"
+}
 ```
-http://localhost:3000
+
+**Response 201 Created:**
+
+```json
+{
+  "data": { "id": "…", "name": "…", "email": "…" },
+  "meta": { "email_verification_required": true }
+}
 ```
+
+**Errores posibles:**
+
+| Status | `error.code` | Causa |
+|--------|-------------|-------|
+| 400 | `INVALID_REQUEST_BODY` | Body no es JSON válido |
+| 409 | `EMAIL_ALREADY_EXISTS` | Email ya registrado |
+| 422 | `VALIDATION_ERROR` | Validación de campos |
+
+---
+
+### GET `/auth/verify-email`
+
+Confirma el email con el token del enlace (query). El frontend puede redirigir a esta URL con `token` en la query.
+
+**Request:**
+
+```http
+GET /auth/verify-email?token=<uuid>
+```
+
+**Response 200 OK:**
+
+```json
+{ "message": "Email verified successfully" }
+```
+
+**Errores posibles:**
+
+| Status | `error.code` | Causa |
+|--------|-------------|-------|
+| 400 | `INVALID_REQUEST_BODY` / `VALIDATION_ERROR` | Query inválida |
+| 422 | `INVALID_VERIFICATION_TOKEN` | Token inválido o expirado |
+
+---
+
+### POST `/auth/resend-verification`
+
+Solicita un nuevo correo de verificación. Por diseño no revela si el email existe (`200` en ambos casos cuando el flujo es correcto).
+
+**Request:**
+
+```json
+{ "email": "user@example.com" }
+```
+
+**Response 200 OK:**
+
+```json
+{ "message": "If the email exists, a verification link has been sent" }
+```
+
+**Errores posibles:**
+
+| Status | `error.code` | Causa |
+|--------|-------------|-------|
+| 409 | `EMAIL_ALREADY_VERIFIED` | El email ya estaba verificado |
 
 ---
 
@@ -60,7 +145,8 @@ Content-Type: application/json
 |--------|-------------|-------|
 | 400 | `INVALID_REQUEST_BODY` | Body no es JSON válido |
 | 401 | `INVALID_CREDENTIALS` | Email o password incorrectos |
-| 422 | `VALIDATION_ERROR` | Email inválido o password < 8 chars |
+| 403 | `EMAIL_VERIFICATION_REQUIRED` | Cuenta sin email verificado |
+| 422 | `VALIDATION_ERROR` | Email inválido o password con menos de 8 caracteres |
 
 ---
 
@@ -96,7 +182,9 @@ Content-Type: application/json
 | Status | `error.code` | Causa |
 |--------|-------------|-------|
 | 400 | `INVALID_REQUEST_BODY` | Body no es JSON válido |
-| 401 | `TOKEN_INVALID` | Token inválido, ya usado o expirado |
+| 400 | `REFRESH_TOKEN_WRONG_FORMAT` | Se envió el JWT de acceso en lugar del refresh opaco |
+| 401 | `TOKEN_INVALID` | Refresh inválido, ya usado o expirado |
+| 403 | `EMAIL_VERIFICATION_REQUIRED` | Usuario sin email verificado |
 
 ---
 
@@ -117,24 +205,38 @@ Authorization: Bearer <access_token>
 
 | Status | `error.code` | Causa |
 |--------|-------------|-------|
-| 401 | `UNAUTHORIZED` | Access token ausente o inválido |
-| 401 | `TOKEN_INVALID` | Access token malformado o expirado |
+| 401 | `UNAUTHORIZED` | Sin header `Authorization` o formato distinto de `Bearer` |
+| 401 | `TOKEN_INVALID` | JWT ausente en el sentido correcto, malformado, firma inválida o expirado |
+
+---
+
+### POST `/auth/dev/verify-email-token` (solo no producción)
+
+Si `APP_ENV` ≠ `production`, el backend expone este helper de desarrollo: devuelve un token de verificación para un email (también regenera el token vía la misma lógica que resend). **No usar en producción.**
 
 ---
 
 ## Rutas protegidas
 
-Todas las rutas bajo `/users` requieren el header `Authorization: Bearer <access_token>`.
+Requieren `Authorization: Bearer <access_token>` (middleware JWT). Sin token válido: `401` con `UNAUTHORIZED` o `TOKEN_INVALID`.
+
+**Usuarios (perfil del usuario autenticado):**
 
 ```http
-GET    /users
-GET    /users/:id
-POST   /users
-PUT    /users/:id
-DELETE /users/:id
+GET    /users/me
+GET    /users/me/accounts
+PUT    /users/me
+DELETE /users/me
 ```
 
-Sin el header o con token inválido el backend responde `401 UNAUTHORIZED`.
+**Cuentas:**
+
+```http
+POST   /accounts
+POST   /accounts/active
+```
+
+**Facturas:** prefijo `/invoices` con autenticación **y** pertenencia a la cuenta activa (middleware adicional). Ver [ARCHITECTURE.md](./ARCHITECTURE.md) / código de `invoice` para el detalle.
 
 ---
 
@@ -182,7 +284,7 @@ El payload del JWT contiene:
 | `email` | Email del usuario |
 | `sub` | Igual a `user_id` (estándar JWT) |
 | `iat` | Timestamp de emisión |
-| `exp` | Timestamp de expiración (15 min) |
+| `exp` | Timestamp de expiración (por defecto 15 min; configurable con `JWT_ACCESS_TOKEN_DURATION_MINUTES`) |
 
 Algoritmo: **HS256**
 
@@ -193,8 +295,12 @@ Algoritmo: **HS256**
 ```
 [Next.js]                          [Fiber API]
 
+0. Registro y verificación (primera vez)
+   POST /auth/register ───────────► Crea usuario, envía email (Lambda si está configurado)
+   Usuario abre enlace ───────────► GET /auth/verify-email?token=...
+
 1. Login
-   POST /auth/login ──────────────► Valida credenciales
+   POST /auth/login ──────────────► Valida credenciales y email verificado
                     ◄────────────── { access_token, refresh_token }
 
 2. Guardar tokens
@@ -298,13 +404,17 @@ export async function POST() {
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
 | `JWT_SECRET` | Clave de firma del JWT. Mínimo 32 chars aleatorios. | `openssl rand -hex 32` |
+| `FRONTEND_URL` | Origen del frontend: CORS (`AllowOrigins`) y enlaces `.../auth/verify-email?token=` en el correo. | `http://localhost:3001` |
+| `JWT_ACCESS_TOKEN_DURATION_MINUTES` | Duración del access token (minutos). Por defecto `15`. | `15` |
+| `LAMBDA_SEND_VERIFY_EMAIL_NAME` | Nombre de la función Lambda que envía el email de verificación; vacío → no se envía correo (notifier noop). | — |
+| `APP_ENV` | Si es `production`, se oculta `POST /auth/dev/verify-email-token`. | `development` |
 
 ### Frontend (Next.js)
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | URL base del backend (para llamadas del cliente) | `http://localhost:3000` |
-| `API_URL` | URL base del backend (para llamadas server-side) | `http://localhost:3000` |
+| `NEXT_PUBLIC_API_URL` | URL base de la **API** (llamadas desde el cliente) | Debe coincidir con el host/puerto del backend |
+| `API_URL` | URL base de la **API** (llamadas server-side / Route Handlers) | Mismo criterio |
 
 ---
 
@@ -313,45 +423,30 @@ export async function POST() {
 | `error.code` | Status | Descripción |
 |---|---|---|
 | `INVALID_CREDENTIALS` | 401 | Email o password incorrecto en login |
-| `UNAUTHORIZED` | 401 | Endpoint protegido sin token |
-| `TOKEN_INVALID` | 401 | Token malformado, firmado con otro secret, o ya revocado |
-| `TOKEN_EXPIRED` | 401 | Access token expirado (también devuelve `TOKEN_INVALID`) |
+| `EMAIL_VERIFICATION_REQUIRED` | 403 | Login o refresh con email aún no verificado |
+| `UNAUTHORIZED` | 401 | Endpoint protegido sin `Authorization` o sin esquema `Bearer` |
+| `TOKEN_INVALID` | 401 | JWT de acceso malformado, firma incorrecta o expirado; también refresh inválido/revocado en `/auth/refresh` |
+| `REFRESH_TOKEN_WRONG_FORMAT` | 400 | Se envió un JWT como `refresh_token` en lugar del token opaco |
+| `TOKEN_EXPIRED` | — | Definido en la API; el middleware de acceso actual devuelve `TOKEN_INVALID` cuando el JWT expira |
 
 ---
 
 ## CORS
 
-El backend debe tener CORS configurado para aceptar requests desde el origen del frontend. Configurar en `internal/bootstrap/app/app.go` con el middleware de Fiber:
-
-```go
-import "github.com/gofiber/fiber/v3/middleware/cors"
-
-app.Use(cors.New(cors.Config{
-    AllowOrigins:     []string{"http://localhost:3001"}, // origen del frontend
-    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-    AllowCredentials: true, // necesario para cookies
-}))
-```
+El origen permitido se toma de **`FRONTEND_URL`** y se aplica en el arranque vía `middleware.CORS` en `internal/bootstrap/app/app.go` (implementación en `internal/shared/middleware/cors.go`): un solo origen explícito, métodos GET/POST/PUT/PATCH/DELETE/OPTIONS, headers `Origin`, `Content-Type`, `Accept`, `Authorization`, `X-Requested-With`. Si `FRONTEND_URL` está vacío, no se permite ningún origen (fail-closed).
 
 ---
 
 ## Checklist de integración
 
 ### Backend (completado)
-- [x] `POST /auth/login` — devuelve `access_token` + `refresh_token`
-- [x] `POST /auth/refresh` — rota el refresh token
+- [x] `POST /auth/register` — alta y flujo de verificación por email
+- [x] `GET /auth/verify-email` — confirma email con token en query
+- [x] `POST /auth/resend-verification` — reenvío de correo de verificación
+- [x] `POST /auth/login` — devuelve `access_token` + `refresh_token` (requiere email verificado)
+- [x] `POST /auth/refresh` — rota el refresh token (requiere email verificado)
 - [x] `POST /auth/logout` — revoca todos los refresh tokens del usuario
-- [x] Middleware JWT — protege rutas `/users`
+- [x] Middleware JWT — protege rutas de usuario, cuenta e invoice según el router
 - [x] Refresh token rotation — el token anterior se invalida al renovar
 - [x] Refresh tokens en DB — tabla `refresh_tokens` con hash SHA-256
-
-### Frontend (pendiente)
-- [ ] Función de login que llame a `POST /auth/login`
-- [ ] Guardar `access_token` en memoria (context/store)
-- [ ] Guardar `refresh_token` como `httpOnly` cookie (vía Route Handler)
-- [ ] Interceptor HTTP que adjunte el `Authorization: Bearer` header
-- [ ] Lógica de refresh automático cuando el server devuelve `401`
-- [ ] Función de logout que llame a `POST /auth/logout` y limpie el estado
-- [ ] Rutas protegidas en Next.js (middleware `middleware.ts` con verificación de token)
-- [ ] Configurar CORS en el backend para el origen del frontend
+- [x] CORS — origen desde `FRONTEND_URL`

@@ -14,6 +14,8 @@ import (
 	"github.com/cloudflax/api.cloudflax/internal/user"
 )
 
+// En: Bootstraps config, database, migrations, then starts the API server.
+// Es: Inicializa config, base de datos, migraciones y arranca el servidor API.
 func main() {
 	logger.Init(os.Getenv("LOG_LEVEL"))
 
