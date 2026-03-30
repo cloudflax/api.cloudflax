@@ -10,7 +10,7 @@
 
 **Logs:** `slog` estructurado; nunca contraseñas, tokens ni PII.
 
-**Comentarios Go:** [`.cursor/rules/go-bilingual-comments.mdc`](../.cursor/rules/go-bilingual-comments.mdc).
+**Comentarios Go:** [.cursor/rules/go-bilingual-comments.mdc](../.cursor/rules/go-bilingual-comments.mdc).
 
 **Código (siempre):** inglés en identificadores y errores expuestos por la API; encadenar con `fmt.Errorf("…: %w", err)`; secretos solo vía env. Paginación y códigos HTTP: [CONVENTIONS.md](../CONVENTIONS.md).
 
