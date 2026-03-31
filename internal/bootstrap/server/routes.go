@@ -35,6 +35,19 @@ func Mount(app *fiber.App, cfg *config.Config) {
 		AccessTokenDuration:  cfg.JWTAccessTokenDuration,
 	})
 	authHandler := auth.NewHandler(authService)
+	resendGuard, err := auth.NewDynamoResendVerificationGuard(context.Background(), auth.DynamoResendVerificationGuardOptions{
+		TableName:       cfg.APIThrottleTableName,
+		EndpointURL:     cfg.AWSEndpointURL,
+		Region:          cfg.AWSRegion,
+		Profile:         cfg.AWSProfile,
+		AccessKeyID:     cfg.AWSAccessKeyID,
+		SecretAccessKey: cfg.AWSSecretAccessKey,
+	})
+	if err != nil {
+		slog.Warn("failed to initialise resend verification guard", "error", err)
+	} else if resendGuard != nil {
+		authHandler = authHandler.WithResendVerificationGuard(resendGuard)
+	}
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)
 

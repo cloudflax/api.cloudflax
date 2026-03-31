@@ -19,6 +19,6 @@ clean-cache:
 # Development only: truncates all app tables. Never run against production.
 # Credentials are fetched from AWS Secrets Manager (AWS_SECRET_NAME).
 db-reset:
-	@echo "$(YELLOW)Resetting development database tables...$(RESET)"
+	@echo "$(YELLOW)Resetting development database and API throttle table...$(RESET)"
 	@APP_ENV=development go run ./cmd/db-reset
 	@echo "$(GREEN)Done.$(RESET)"
