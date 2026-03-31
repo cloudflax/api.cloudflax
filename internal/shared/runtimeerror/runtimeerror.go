@@ -40,6 +40,7 @@ const (
 	CodeTokenExpired            ErrorCode = "TOKEN_EXPIRED"
 	CodeTokenInvalid            ErrorCode = "TOKEN_INVALID"
 	CodeRefreshTokenWrongFormat ErrorCode = "REFRESH_TOKEN_WRONG_FORMAT"
+	CodeRateLimited             ErrorCode = "RATE_LIMITED"
 )
 
 // ErrorDetail describes a single field-level validation failure.

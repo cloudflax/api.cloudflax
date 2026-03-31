@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"log/slog"
+	"strconv"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
@@ -14,13 +15,21 @@ import (
 // En: Handler handles HTTP requests for authentication.
 // Es: Manejador maneja las solicitudes HTTP para la autenticación.
 type Handler struct {
-	service *Service
+	service     *Service
+	resendGuard ResendVerificationGuard
 }
 
 // En: NewHandler creates a new auth handler.
 // Es: Crea un nuevo manejador de autenticación.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
+}
+
+// En: WithResendVerificationGuard sets an optional resend verification guard.
+// Es: WithResendVerificationGuard define un guard opcional para reenvio.
+func (handler *Handler) WithResendVerificationGuard(guard ResendVerificationGuard) *Handler {
+	handler.resendGuard = guard
+	return handler
 }
 
 // En: Login authenticates a user and returns an access + refresh token pair.
@@ -197,6 +206,27 @@ func (handler *Handler) ResendVerification(ctx fiber.Ctx) error {
 			)
 		}
 		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	if handler.resendGuard != nil {
+		if err := handler.resendGuard.CheckAndConsume(ctx.Context(), req.Email, ctx.IP()); err != nil {
+			var limitErr *ResendVerificationRateLimitError
+			if errors.As(err, &limitErr) {
+				retryAfterSeconds := int64(limitErr.RetryAfter.Seconds())
+				if retryAfterSeconds <= 0 {
+					retryAfterSeconds = 1
+				}
+				ctx.Set("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
+				return runtimeError.Respond(
+					ctx,
+					fiber.StatusTooManyRequests,
+					runtimeError.CodeRateLimited,
+					"Too many verification requests. Try again later",
+				)
+			}
+			slog.Error("resend verification throttle", "error", err)
+			return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not resend verification")
+		}
 	}
 
 	if _, err := handler.service.ResendVerification(req.Email); err != nil {

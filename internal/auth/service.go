@@ -62,12 +62,12 @@ type ServiceOptions struct {
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
-	repository            *Repository
-	userRepository        UserRepository
-	jwtSecret             []byte
-	verificationNotifier  verificationnotify.Notifier
-	frontendURL           string
-	accessTokenDuration   time.Duration
+	repository           *Repository
+	userRepository       UserRepository
+	jwtSecret            []byte
+	verificationNotifier verificationnotify.Notifier
+	frontendURL          string
+	accessTokenDuration  time.Duration
 }
 
 // En: NewService creates a new authentication service.
@@ -181,6 +181,7 @@ func (service *Service) ResendVerification(email string) (string, error) {
 
 	if err := service.sendVerificationEmail(context.Background(), u.Email, u.Name, token); err != nil {
 		slog.Error("send verification email after resend", "email", u.Email, "error", err)
+		return "", fmt.Errorf("send verification email after resend: %w", err)
 	}
 
 	return token, nil

@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type failingNotifier struct{}
+
+func (failingNotifier) NotifyVerificationEmail(context.Context, string, string, string) error {
+	return errors.New("notifier failed")
+}
 
 // En: hashTokenForTest calculates the SHA-256 hash of a test token.
 // Es: hashTokenForTest calcula el hash SHA-256 de un token de prueba.
@@ -281,6 +289,28 @@ func TestServiceResendVerificationAlreadyVerified(test *testing.T) {
 
 	_, err = service.ResendVerification("eve@example.com")
 	assert.ErrorIs(test, err, ErrEmailAlreadyVerified)
+}
+
+// En: TestServiceResendVerificationEmailSendFailure returns error on notifier failure.
+// Es: TestServiceResendVerificationEmailSendFailure devuelve error si falla notifier.
+func TestServiceResendVerificationEmailSendFailure(test *testing.T) {
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:            testJWTSecret,
+		VerificationNotifier: failingNotifier{},
+		FrontendURL:          "http://test",
+	})
+
+	_, _, err := service.Register("Mailer", "mailer@example.com", "password123")
+	require.NoError(test, err)
+
+	_, err = service.ResendVerification("mailer@example.com")
+	require.Error(test, err)
+	assert.Contains(test, err.Error(), "send verification email after resend")
 }
 
 // En: TestServiceLogoutRevokesAllTokens tests the logout and revocation of all tokens.
