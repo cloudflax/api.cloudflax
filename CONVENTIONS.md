@@ -1,140 +1,67 @@
-## Conventions | Cloudflax - Backend
+# Convenciones | Cloudflax - Backend
 
-Naming · carpetas · errores/HTTP · handler/service/repository · DTOs · tests · estilo · docs de módulo · JSON · status.
+Naming, carpetas, errores, handler/repository/service, DTOs, tests, estilo, docs de módulo, JSON y status HTTP.
 
-## CRUD naming
+## Nombres CRUD
 
-Patrón global: `{Action}{Resource}`. **Resource** singular (`User`, `Order`). **Action:** `List`, `Get`, `Create`, `Update`, `Delete` → ej. `ListUser`, `GetUser`, … Aplica en `handler.go`, `service.go`, `repository.go` del feature.
+Patrón `{Action}{Resource}` en handler, service, repository. **Resource** singular (`User`, `Country`). **Action:** `List`, `Get`, `Create`, `Update`, `Delete` (ej. `ListUser`, `GetCountry`, `DeleteOrder`).
 
-## Carpetas y archivos
+## Estructura
 
-- **Feature:** `internal/{recurso}/` — singular, lowercase (`user`, `product`).
+- **Features:** `internal/{recurso}/` — singular, lowercase.
 - **Shared:** `internal/shared/{módulo}/`.
-- **Archivos:** singular, lowercase, sufijo por rol.
+- **Archivos:** `handler.go`, `service.go`, `repository.go`, `routes.go`, `dto.go`, `errors.go`, `model.go` según uso.
 
 | Archivo | Rol |
 |---------|-----|
-| `model.go` | Dominio GORM, tabla |
-| `repository.go` | `NewRepository(db)`; CRUD; sentinels del paquete |
-| `service.go` | `NewService(repo)`; mismos nombres CRUD que handler |
-| `handler.go` | Bind, validate, service, `runtimeerror` |
+| `model.go` | Dominio GORM |
+| `repository.go` | `NewRepository(db)`, CRUD; traducir `gorm.ErrRecordNotFound` → errores del paquete; `fmt.Errorf("op: %w", err)` para el resto |
+| `service.go` | `NewService(repo)`, mismos nombres CRUD; validar UUIDs; `ErrNotFound` si formato inválido; deps opcionales por interfaz + `if dep != nil` o `WithX()` |
+| `handler.go` | Bind, `validator.Validate`, service, `runtimeerror` |
 | `routes.go` | `Routes(router, handler, authMiddleware)` |
-| `dto.go` | `CreateXRequest`, `UpdateXRequest`; tags `json`, `validate` |
-| `errors.go` | `var ErrX = fmt.Errorf(...)` para repo/service; handler mapea a HTTP |
+| `dto.go` | `Create/Update{Resource}Request`, tags `json`/`validate`, punteros en updates opcionales |
+| `errors.go` | `var ErrX = fmt.Errorf(...)`; repo/service los devuelven; handler mapea con `errors.Is`/`errors.As` |
 
-Tests: `model_test.go` si hay lógica; `handler_test.go` éxito + errores. Service/repo tests si aplica.
+Tests: `handler_test.go` (éxito + errores); `model_test.go` si hay lógica. **Bootstrap:** `internal/bootstrap/server/routes.go` → repo → service → handler → `{recurso}.Routes(...)`.
 
-**Bootstrap:** `internal/bootstrap/server/routes.go` — repo → service (opciones) → handler → `{recurso}.Routes(app, handler, authMiddleware)`.
+## Errores HTTP
 
-## Errores y HTTP
+Handler: `runtimeerror.Respond` / `RespondWithDetails`; códigos de recurso en `runtimeerror` (ej. `CodeUserNotFound`). Validación: helper tipo `toErrorDetails(validator.ValidationErrors)`. Inesperados: `slog` + `CodeInternalServerError`.
 
-- **Sentinels** en `errors.go`; repo/service los devuelven (no GORM crudo).
-- **Repo:** `gorm.ErrRecordNotFound` → `ErrNotFound`; resto `fmt.Errorf("op: %w", err)`.
-- **Handler:** `errors.Is` / `errors.As`; `runtimeerror.Respond` / `RespondWithDetails`. Validación: helper tipo `toErrorDetails(validator.ValidationErrors)` → `[]runtimeError.ErrorDetail`.
-- **Códigos de recurso** en `internal/shared/runtimeerror/runtimeerror.go` (ej. `CodeUserNotFound`). Inesperados: `slog` + `CodeInternalServerError`.
+## Flujo handler
 
-## Handler (orden)
+Auth (`requestctx.UserOnly` si aplica) → `ctx.Bind().Body(&req)` → `validator.Validate` → service → `errors.Is`/`errors.As` → JSON éxito `{"data": ...}` o 201/204 según operación.
 
-1. Auth si aplica (`requestctx.UserOnly`).
-2. `ctx.Bind().Body(&req)`.
-3. `validator.Validate(req)` → `RespondWithDetails` si hay detalles por campo.
-4. Llamar service.
-5. Mapear error → status/código.
-6. Éxito: `ctx.JSON(fiber.Map{"data": ...})` o `201` / `204` según operación.
+## DTOs / constructores
 
-## Service
+`NewRepository(db)`, `NewService(repository)`, `NewHandler(service)`. Opcionales en service vía métodos que devuelven `*Service`.
 
-- Validar IDs (ej. `uuid.Parse`); inválido → mismo error que no encontrado (`ErrNotFound`).
-- Dependencias externas por **interfaz**; opcionales: `if dep != nil`; builder `WithTokenRevoker(tr) *Service` si hace falta.
+## Tests handler
 
-## DTOs y constructores
-
-- DTOs: `Create{Resource}Request`, `Update{Resource}Request` (o `UpdateMeRequest`). Updates: punteros para opcionales.
-- `NewRepository(db)`, `NewService(repo)`, `NewHandler(service)`. Opcionales vía métodos `*Service`, no firma gigante.
-
-## Tests de handler
-
-- Parámetro **`test *testing.T`** (nunca `t`) en tests y helpers.
-- `Setup{Resource}HandlerTest(test)` → `database.InitForTesting()`, migraciones del modelo, repo → service → handler.
-- `DecodeErrorResponse(test, body)` → `runtimeError.ErrorResponse`; assert `errorResponse.Error.Code`.
-- Por endpoint: al menos un éxito + errores relevantes (401, 404, 422, 409, …).
+Parámetro **`test *testing.T`** (no `t`). `Setup{Resource}HandlerTest(test)` → `database.InitForTesting()`, migraciones, repo → service → handler. `DecodeErrorResponse(test, body)` → `ErrorResponse` y `errorResponse.Error.Code`. Por endpoint: al menos un éxito y errores (401, 404, 422, 409, …) según aplique.
 
 ## Estilo
 
-- Imports: std → third → internal; líneas en blanco entre grupos.
-- Alias camelCase para paquetes de una palabra ambigua: `runtimeError "…/runtimeerror"`.
-- Variables camelCase; exportados PascalCase.
-- Código y comentarios en **inglés**.
-- Nombres explícitos: `userRepository`, no `userRepo`; params `repository`, `service`, `handler`, `request`, `response`. OK: `err`, `ctx`, `id`, `req`/`resp` HTTP. Receivers descriptivos si hay varios.
+Imports: std → third → internal, líneas en blanco. Alias camelCase para paquetes de una palabra confusa (ej. `runtimeError "…/runtimeerror"`). camelCase / PascalCase según exportación. **Código y comentarios en inglés.**
 
-## Documentación del módulo
+Nombres: `userRepository` no `userRepo`; `repository`, `service`, `handler` en vars; excepciones: `err`, `ctx`, `id`, `req`/`resp`. Receivers descriptivos si hay ambigüedad.
 
-1. **Godoc:** comentario antes de `package` empezando por `Package <name> …`.
-2. **`README.md`** en el feature: arquitectura, modelo/datos, errores + HTTP, middlewares/validaciones/integraciones.
+## Docs módulo
 
-## JSON API
+1. Comentario antes de `package`: `// Package user provides ...` (godoc).
+2. `README.md` en el feature: modelo, errores, HTTP, notas técnicas.
 
-Códigos y helpers: `internal/shared/runtimeerror/runtimeerror.go`; `runtimeerror.Respond` y `runtimeerror.RespondWithDetails` construyen la forma de error.
+## JSON
 
-**Éxito:**
+Éxito: `{"data": {...}, "message": "opcional"}`. Error: `error` con `code`, `message`, `status`, `trace_id`; validación añade `details[]` (`field`, `message`). Paginación: `meta` (`page`, `limit`, `total`). Helpers en `runtimeerror`.
 
-```json
-{
-  "data": { ... },
-  "message": "opcional"
-}
-```
-
-**Error (único):**
-
-```json
-{
-  "error": {
-    "code": "USER_NOT_FOUND",
-    "message": "user not found",
-    "status": 404,
-    "trace_id": "abc-123"
-  }
-}
-```
-
-**Error (validación, varios campos):**
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "validation failed",
-    "status": 422,
-    "trace_id": "abc-123",
-    "details": [
-      { "field": "email", "message": "must be a valid email address" },
-      { "field": "password", "message": "must be at least 8 characters" }
-    ]
-  }
-}
-```
-
-**Lista paginada:** mismo contenedor de éxito; añadir `meta` con `page`, `limit`, `total`.
-
-```json
-{
-  "data": [ ... ],
-  "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 100
-  }
-}
-```
-
-## Status HTTP
+## Status
 
 | Operación | OK | Errores típicos |
 |-----------|-----|-----------------|
-| List | 200 | 400 query |
+| List | 200 | 400 |
 | Get | 200 | 404 |
-| Create | 201 | 400, 409 duplicado |
+| Create | 201 | 400, 409 |
 | Update | 200 | 400, 404 |
 | Delete | 200 o 204 | 404 |
 | Login | 200 | 401 |

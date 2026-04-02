@@ -2,7 +2,7 @@ FROM golang:1.25-bookworm
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends git git-flow curl ca-certificates gh \
     && rm -rf /var/lib/apt/lists/*
 
 RUN go install github.com/air-verse/air@latest \

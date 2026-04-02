@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	shareddynamodb "github.com/cloudflax/api.cloudflax/internal/shared/dynamodb"
 	"github.com/cloudflax/api.cloudflax/internal/shared/secrets"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -51,6 +52,43 @@ func main() {
 	}
 
 	fmt.Println("Database tables truncated successfully.")
+
+	throttleTableName := strings.TrimSpace(os.Getenv("API_THROTTLE_TABLE_NAME"))
+	if throttleTableName == "" {
+		fmt.Println("Skipping DynamoDB cleanup: API_THROTTLE_TABLE_NAME is empty.")
+		return
+	}
+
+	dynamoClient, err := shareddynamodb.NewClient(context.Background(), shareddynamodb.ClientOptions{
+		EndpointURL:     os.Getenv("AWS_ENDPOINT_URL"),
+		Region:          os.Getenv("AWS_REGION"),
+		Profile:         os.Getenv("AWS_PROFILE"),
+		AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "create dynamodb client: %v\n", err)
+		os.Exit(1)
+	}
+
+	dynamoCtx, dynamoCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer dynamoCancel()
+
+	deleted, err := shareddynamodb.DeleteAllItems(dynamoCtx, dynamoClient, throttleTableName)
+	if err != nil {
+		fmt.Fprintf(
+			os.Stderr,
+			"delete dynamodb items: %v (table=%s, region=%s, profile=%s, endpoint=%s)\n",
+			err,
+			throttleTableName,
+			os.Getenv("AWS_REGION"),
+			os.Getenv("AWS_PROFILE"),
+			os.Getenv("AWS_ENDPOINT_URL"),
+		)
+		os.Exit(1)
+	}
+
+	fmt.Printf("DynamoDB table cleaned successfully. Deleted items: %d\n", deleted)
 }
 
 func fetchDBCredentials(ctx context.Context, secretName string) (*secrets.DBCredentials, error) {

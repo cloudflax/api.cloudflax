@@ -40,6 +40,7 @@ type Config struct {
 
 	// Verification email is sent by Lambda (async).
 	LambdaSendVerifyEmailName string
+	APIThrottleTableName      string
 
 	// JWTAccessTokenDuration is the signed JWT access token lifetime.
 	JWTAccessTokenDuration time.Duration
@@ -71,6 +72,7 @@ func Load() (*Config, error) {
 		SESFromAddress:            getEnv("SES_FROM_ADDRESS", ""),
 		SESEndpointURL:            getEnv("SES_ENDPOINT_URL", ""),
 		LambdaSendVerifyEmailName: getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
+		APIThrottleTableName:      getEnv("API_THROTTLE_TABLE_NAME", ""),
 		JWTAccessTokenDuration:    jwtAccessTokenDurationFromEnv(),
 	}
 

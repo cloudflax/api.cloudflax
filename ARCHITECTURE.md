@@ -1,37 +1,39 @@
-# Architecture | Cloudflax Backend
+# Architecture | Cloudflax - Backend
+
+Estructura, patrones y flujo de datos del backend.
 
 ## Stack
-Go (feature-driven), Fiber v3, GORM + PostgreSQL; tests unitarios e integración (PostgreSQL / SQLite in-memory).
 
-## `internal/` (feature-driven)
-| Ruta | Contenido |
-|------|-----------|
-| `bootstrap/` | Config, servidor, arranque |
-| `{feature}/` | Por recurso (opcional según complejidad): `handler`, `service`, `repository`, `model`, `dto`, `routes`, `validator`, helpers |
-| `shared/` | `database` (conexión + migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator`, `verificationnotify` (Lambda correo verificación), utilidades |
+Go (feature-driven), Fiber v3, GORM + PostgreSQL; tests unitarios e integración (PostgreSQL/SQLite).
 
-Recursos simples pueden omitir capas (p. ej. solo handler + repository + model + routes).
+## Directorios (`internal/`)
+
+- **`bootstrap/`**: Config, servidor, arranque.
+- **`{feature}/`**: `handler`, `service`, `repository`, `model`, `dto`, `routes`; opcional `validator` u helpers.
+- **`shared/`**: `database` (conexión, migraciones), `middleware`, `pagination`, `filtering`, `errors`, `validator`, `verificationnotify` (Lambda correo verificación), utilidades.
+
+No todo feature necesita todos los archivos; lo mínimo suele ser `handler`, `repository`, `model`, `routes`.
 
 ## Capas
-Flujo: **Middleware → Handler → Service → Repository → DB**.
 
-| Capa | Rol | No hace |
-|------|-----|---------|
-| Handler | HTTP Fiber: parseo requests, respuestas | Lógica de negocio, acceso directo a DB |
-| Service | Negocio y orquestación | Depender de HTTP/Fiber ni códigos de estado |
-| Repository | Acceso datos (GORM) | Respuestas HTTP |
+**Flujo:** `Request → Middleware → Handler → Service → Repository → DB`.
 
-Validación: DTOs y checks **antes** del Service.
+| Capa | Rol |
+|------|-----|
+| **Handler** | HTTP (Fiber): parseo y respuestas. Sin negocio ni DB directa; delega al Service. |
+| **Service** | Negocio y orquestación. Sin Fiber ni status HTTP; modelos y errores de dominio. |
+| **Repository** | GORM. Sin respuestas HTTP. |
+| **Validación** | DTOs / validadores antes del Service. |
 
-## Errores y transporte
-Service/Repository devuelven errores de dominio (p. ej. `ErrNotFound`, `ErrDuplicateEmail`). El Handler los mapea a HTTP + JSON. Solo el Handler conoce transporte; Service/Repository sin Fiber ni respuestas HTTP.
+## Errores y middleware
 
-## Middleware (orden)
-`Logger → Request ID → Recovery → CORS → Auth (JWT)`  
-Logger: método, path, status, duración. Request ID: `X-Request-ID` para tracing. Recovery: `panic` → 500 controlado. CORS: frontend autorizado. Auth: JWT en rutas protegidas.
+Service/Repository devuelven errores de dominio (`ErrNotFound`, etc.); el Handler mapea a HTTP y JSON. Solo el Handler conoce transporte.
 
-## Workflow
-1. Implementar capas; rutas en `internal/bootstrap/server/routes.go`.
-2. Cambios de modelo GORM: registrar en `database.RunMigrations()` (`cmd/api/main.go`).
-3. Antes de cerrar: `make lint` y `make test`.
-4. Tests: `*_test.go` junto al feature; unitarios por capa + integración con DB.
+**Orden:** Logger → Request ID → Recovery → CORS → Auth (JWT). Logger (método, path, status, duración); Request ID (`X-Request-ID`); Recovery (panic → 500); CORS; Auth en rutas protegidas.
+
+## Desarrollo
+
+1. Capas anteriores; rutas en `bootstrap/server/routes.go`.
+2. Migraciones: `database.RunMigrations()`.
+3. `make lint` y `make test`.
+4. `*_test.go` junto al feature (unit por capa; integración PostgreSQL o SQLite in-memory).

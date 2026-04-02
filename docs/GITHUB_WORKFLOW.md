@@ -1,33 +1,30 @@
-# GitHub Workflow & Traceability (`cloudflax/api.cloudflax`)
+# GitHub: flujo y trazabilidad (`cloudflax/api.cloudflax`)
 
-Agente integrado en este repo: trazabilidad vía GitHub Issues/Project y ramas. No ejecutes Issue + rama + PR sin señal del usuario.
+El detalle de cada paso vive en archivos bajo [`docs/github-workflow/`](./github-workflow/); este archivo es el **índice**: secuencia y enlaces.
 
-## Inicio
+**Regla previa:** no abras issue, rama ni PR **sin indicación explícita del usuario**. Calidad de código (`make lint`, `make test`, GORM, etc.): [AGENT_RULES.md](./AGENT_RULES.md).
 
-Ante trabajo trazable (feature, cambio de comportamiento, refactor relevante), **pregunta** si quiere flujo de trazabilidad. Matriz:
+---
 
-- **Sí, rama + trazabilidad** → crear Issue en `@api.cloudflax`, anotar `#ID`, rama `feature/<ID>-<slug-kebab>`.
-- **Solo crear tarea** → solo Issue en el project; sin rama hasta nueva orden.
-- **Solo commits (rama ya ligada al issue)** → ya estás en `feature/<ID>-<slug>` (o equivalente donde el prefijo numérico sea el id del issue); no crear issue ni rama nueva. Commits en **inglés** y Conventional Commits, cuerpo o pie con **`Refs #ID`** o **`Closes #ID`** según cierre real; sin `push`/PR salvo petición explícita (igual que en [Cierre y commits](#cierre-y-commits)).
+## Secuencia de acciones
 
-## Issues y ramas
+Ejecutá **solo** las acciones que el usuario incluyó en el alcance de la sesión, **en este orden** cuando varias apliquen.
 
-Creación: `gh issue create -R cloudflax/api.cloudflax -p "@api.cloudflax"` (nombre del project exacto). Cuerpo con objetivos y criterios de aceptación. Rama: `feature/<ID_ISSUE>-<slug>`; el `#ID` debe existir antes. Ramas dedicadas para revisiones o paralelismo; no forzar para micro-cambios.
+| # | Acción | Depende de |
+|---|--------|------------|
+| 1 | [Commits con trazabilidad](./github-workflow/01-commits.md) | Hay cambios listos; convención del repo. |
+| 2 | [Push y pull request](./github-workflow/02-push-pr.md) | El usuario lo pidió explícitamente o hay acuerdo en la sesión. |
 
-**Primera creación (misma pasada):** issue con `--assignee cloudflax` y `--label …` si el CLI lo permite; en el project, **Priority** y **Size** siempre con valor (no dejar el select vacío). **Estimate** y fechas solo con criterio o acuerdo; si no hay, indicarlo en el cuerpo — no inventar. Assignee alternativo si `cloudflax` no aplica en el org.
+Si el usuario **no** pidió una acción, **no** la ejecutes (misma línea que [AGENT_RULES.md](./AGENT_RULES.md) para `push`/PR).
 
-## Cierre y commits
+---
 
-No hagas `git push` ni PR al acabar código salvo petición explícita o acuerdo en sesión. PR: `Closes #ID` o `Refs #ID`. Commits y descripciones en **inglés**; Conventional Commits (`feat:`, `fix:`, …). Antes de crear cada commit, **lee el nombre de la rama actual** para obtener el ID de la tarea (por ejemplo `feature/3-agents-md-hub` -> `#3`) y usa ese **mismo `#ID`** en el cuerpo o pie del commit con `Refs #ID` o `Closes #ID` según corresponda. Sin `git commit --amend` ni reescritura de historial remoto salvo petición expresa.
+## Tablero (solo referencia)
 
-## Project: Status
+[Flujo de estados del project `@api.cloudflax`](./github-workflow/03-tablero.md): qué significa cada **Status** y en qué orden van. No es una acción del flujo de este repo; el tablero se alinea al trabajo vía **workflows** del project salvo que alguien pida otra cosa.
 
-Mantén **Status** alineado con la realidad. Valores: **Backlog**, **Ready**, **In progress**, **In review**, **Done**. Flujo típico en ese orden.
+---
 
-## Project: Priority, Size, Estimate, fechas
+## Apéndice (herramientas)
 
-CLI: `gh project list --owner cloudflax` → `gh project field-list <n> --owner cloudflax` → `item-id` vía `gh project item-list`. Editar: `gh project item-edit --project-id … --id <item-id> --field-id …` + `--single-select-option-id …` | `--number …` | `--date YYYY-MM-DD` | `--clear`. Issue: `gh issue edit <n> --add-assignee cloudflax --add-label "<label>"`.
-
-## Tooling
-
-Errores de permisos o scopes (`project`, `read:project`): pedir al usuario `gh auth refresh` (u auth adecuada) antes de reintentar.
+- [GitHub CLI: auth y `gh project`](./github-workflow/gh-cli.md)
