@@ -101,14 +101,46 @@ Si el usuario no usa la checklist, **preguntá en una sola franja** qué marca d
 
 ---
 
-## Apéndice: edición avanzada del project con `gh`
+## Apéndice
+
+### Autenticación con GitHub CLI (`gh`)
+
+**Quién autentica:** `gh auth login`, `gh auth refresh`, el flujo en navegador, el device code (`github.com/login/device`) y el uso de un PAT **los ejecutás y completás vos** en tu entorno (local o devcontainer). Un agente de IA no puede finalizar el login en tu cuenta; si falta sesión o scopes, hacelo vos y recién después seguí con issues/project desde la herramienta que uses.
+
+**Login inicial** (navegador o device code):
+
+```bash
+gh auth login -h github.com
+```
+
+Elegí **HTTPS** si el remoto es `https://github.com/…`, o **SSH** si usás URL SSH.
+
+**Token personal (PAT)** sin flujo interactivo:
+
+```bash
+echo 'YOUR_TOKEN' | gh auth login -h github.com --with-token
+```
+
+**Comprobar sesión y scopes** (issues, PR y labels suelen alcanzar con `repo`; tablero **Projects v2** en la org: **`read:project`**, **`project`**; recursos de org: **`read:org`**):
+
+```bash
+gh auth status -h github.com
+```
+
+**Ampliar permisos** cuando fallen consultas GraphQL a `projectsV2`, comandos `gh project` o visibilidad de la org (`INSUFFICIENT_SCOPES`). Un solo refresh añade lo necesario para tablero y organización:
+
+```bash
+gh auth refresh -h github.com -s project,read:project,read:org
+```
+
+`gh auth refresh` puede abrir el navegador o mostrar un código de un solo uso y la URL `https://github.com/login/device`; completá el flujo en la misma máquina donde ejecutaste el comando.
+
+**Versión del CLI:** en paquetes del sistema a veces `gh` es antiguo y **no incluye** `gh project`. Para listar/editar el tablero desde terminal hace falta una versión reciente ([releases de GitHub CLI](https://github.com/cli/cli/releases)) o usar `gh api graphql` con los scopes anteriores.
+
+### Edición avanzada del project con `gh`
 
 1. `gh project list --owner cloudflax`
 2. `gh project field-list <n> --owner cloudflax`
 3. Obtener `item-id`: `gh project item-list`
 
 Edición: `gh project item-edit --project-id … --id <item-id> --field-id …` con `--single-select-option-id …`, `--number …`, `--date YYYY-MM-DD` o `--clear`. Para el issue: `gh issue edit <n> --add-assignee cloudflax --add-label "<label>"`.
-
-### Permisos
-
-Si fallan permisos o faltan scopes (`project`, `read:project`), pide al usuario `gh auth refresh` (u otra autenticación adecuada) antes de reintentar.
