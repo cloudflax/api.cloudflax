@@ -22,6 +22,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	app.Get("/health", Health())
 
 	verifyNotifier := newVerificationNotifier(cfg)
+	passwordResetNotifier := newPasswordResetNotifier(cfg)
 
 	authRepository := auth.NewRepository(database.DB)
 	userRepository := user.NewRepository(database.DB)
@@ -29,13 +30,28 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	accountService := account.NewService(accountRepository, userRepository)
 
 	authService := auth.NewService(authRepository, userRepository, auth.ServiceOptions{
-		JWTSecret:            cfg.JWTSecret,
-		VerificationNotifier: verifyNotifier,
-		FrontendURL:          cfg.FrontendURL,
-		AccessTokenDuration:  cfg.JWTAccessTokenDuration,
+		JWTSecret:             cfg.JWTSecret,
+		VerificationNotifier:  verifyNotifier,
+		PasswordResetNotifier: passwordResetNotifier,
+		FrontendURL:           cfg.FrontendURL,
+		AccessTokenDuration:   cfg.JWTAccessTokenDuration,
 	})
 	authHandler := auth.NewHandler(authService)
-	resendGuard, err := auth.NewDynamoResendVerificationGuard(context.Background(), auth.DynamoResendVerificationGuardOptions{
+	throttleOpts := auth.DynamoResendVerificationGuardOptions{
+		TableName:       cfg.APIThrottleTableName,
+		EndpointURL:     cfg.AWSEndpointURL,
+		Region:          cfg.AWSRegion,
+		Profile:         cfg.AWSProfile,
+		AccessKeyID:     cfg.AWSAccessKeyID,
+		SecretAccessKey: cfg.AWSSecretAccessKey,
+	}
+	resendGuard, err := auth.NewDynamoResendVerificationGuard(context.Background(), throttleOpts)
+	if err != nil {
+		slog.Warn("failed to initialise resend verification guard", "error", err)
+	} else if resendGuard != nil {
+		authHandler = authHandler.WithResendVerificationGuard(resendGuard)
+	}
+	forgotGuard, err := auth.NewDynamoForgotPasswordGuard(context.Background(), auth.DynamoForgotPasswordGuardOptions{
 		TableName:       cfg.APIThrottleTableName,
 		EndpointURL:     cfg.AWSEndpointURL,
 		Region:          cfg.AWSRegion,
@@ -44,9 +60,9 @@ func Mount(app *fiber.App, cfg *config.Config) {
 		SecretAccessKey: cfg.AWSSecretAccessKey,
 	})
 	if err != nil {
-		slog.Warn("failed to initialise resend verification guard", "error", err)
-	} else if resendGuard != nil {
-		authHandler = authHandler.WithResendVerificationGuard(resendGuard)
+		slog.Warn("failed to initialise forgot-password guard", "error", err)
+	} else if forgotGuard != nil {
+		authHandler = authHandler.WithForgotPasswordGuard(forgotGuard)
 	}
 	requireAuth := middleware.RequireAuth(authService)
 	auth.Routes(app, authHandler, requireAuth)
@@ -106,6 +122,28 @@ func newVerificationNotifier(cfg *config.Config) verificationnotify.Notifier {
 	if err != nil {
 		slog.Warn("failed to initialise verification Lambda notifier, falling back to noop", "error", err)
 		return verificationnotify.NoopNotifier{}
+	}
+	return n
+}
+
+// newPasswordResetNotifier builds a Lambda-backed notifier for forgot-password emails (async invoke).
+func newPasswordResetNotifier(cfg *config.Config) verificationnotify.PasswordResetEmailNotifier {
+	fn := strings.TrimSpace(cfg.LambdaSendForgotPasswordEmailName)
+	if fn == "" {
+		slog.Warn("LAMBDA_SEND_FORGOT_PASSWORD_EMAIL_NAME is empty; forgot-password emails will not be sent")
+		return verificationnotify.NoopPasswordResetEmailNotifier{}
+	}
+
+	n, err := verificationnotify.NewLambdaNotifier(context.Background(), verificationnotify.LambdaNotifierOptions{
+		EndpointURL:     cfg.AWSEndpointURL,
+		Region:          cfg.AWSRegion,
+		AccessKeyID:     cfg.AWSAccessKeyID,
+		SecretAccessKey: cfg.AWSSecretAccessKey,
+		FunctionName:    fn,
+	})
+	if err != nil {
+		slog.Warn("failed to initialise forgot-password Lambda notifier, falling back to noop", "error", err)
+		return verificationnotify.NoopPasswordResetEmailNotifier{}
 	}
 	return n
 }

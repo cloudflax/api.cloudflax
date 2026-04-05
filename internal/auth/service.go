@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,6 +23,7 @@ const (
 	refreshTokenDuration       = 7 * 24 * time.Hour
 	refreshTokenBytes          = 32
 	verificationTokenDuration  = 24 * time.Hour
+	forgotPasswordTokenDuration = time.Hour
 )
 
 // En: Claims holds the JWT payload for access tokens.
@@ -49,11 +51,13 @@ type UserRepository interface {
 	Update(u *user.User) error
 }
 
-// En: ServiceOptions configures JWT signing, verification email delivery and frontend URL for auth links.
-// Es: ServiceOptions configura la firma JWT, el envío del correo de verificación y la URL del frontend para enlaces de auth.
+// En: ServiceOptions configures JWT signing, verification and password-reset email delivery, and frontend URL for auth links.
+// Es: ServiceOptions configura la firma JWT, el envío de correos de verificación y de recuperación de contraseña, y la URL del front para enlaces de auth.
 type ServiceOptions struct {
 	JWTSecret            string
 	VerificationNotifier verificationnotify.Notifier
+	// PasswordResetNotifier sends forgot-password emails (async Lambda → SES). Nil defaults to noop.
+	PasswordResetNotifier verificationnotify.PasswordResetEmailNotifier
 	FrontendURL          string
 	// AccessTokenDuration is the JWT access token lifetime; zero defaults to 15 minutes.
 	AccessTokenDuration time.Duration
@@ -62,12 +66,13 @@ type ServiceOptions struct {
 // En: Service handles the business logic of authentication.
 // Es: Service maneja la lógica de negocios de la autenticación.
 type Service struct {
-	repository           *Repository
-	userRepository       UserRepository
-	jwtSecret            []byte
-	verificationNotifier verificationnotify.Notifier
-	frontendURL          string
-	accessTokenDuration  time.Duration
+	repository                *Repository
+	userRepository            UserRepository
+	jwtSecret                 []byte
+	verificationNotifier      verificationnotify.Notifier
+	passwordResetNotifier     verificationnotify.PasswordResetEmailNotifier
+	frontendURL               string
+	accessTokenDuration       time.Duration
 }
 
 // En: NewService creates a new authentication service.
@@ -77,17 +82,22 @@ func NewService(repository *Repository, userRepository UserRepository, opts Serv
 	if notifier == nil {
 		notifier = verificationnotify.NoopNotifier{}
 	}
+	resetNotifier := opts.PasswordResetNotifier
+	if resetNotifier == nil {
+		resetNotifier = verificationnotify.NoopPasswordResetEmailNotifier{}
+	}
 	accessDur := opts.AccessTokenDuration
 	if accessDur <= 0 {
 		accessDur = defaultAccessTokenDuration
 	}
 	return &Service{
-		repository:           repository,
-		userRepository:       userRepository,
-		jwtSecret:            []byte(opts.JWTSecret),
-		verificationNotifier: notifier,
-		frontendURL:          strings.TrimSuffix(strings.TrimSpace(opts.FrontendURL), "/"),
-		accessTokenDuration:  accessDur,
+		repository:            repository,
+		userRepository:        userRepository,
+		jwtSecret:             []byte(opts.JWTSecret),
+		verificationNotifier:  notifier,
+		passwordResetNotifier: resetNotifier,
+		frontendURL:           strings.TrimSuffix(strings.TrimSpace(opts.FrontendURL), "/"),
+		accessTokenDuration:   accessDur,
 	}
 }
 
@@ -185,6 +195,106 @@ func (service *Service) ResendVerification(email string) (string, error) {
 	}
 
 	return token, nil
+}
+
+// En: ForgotPassword issues a one-time password reset token and enqueues the reset email for eligible users.
+// Returns nil without sending when the user does not exist, is unverified, or has no credentials provider (enumeration-safe).
+// Es: ForgotPassword emite un token de un solo uso y encola el correo de recuperación para usuarios elegibles.
+// Devuelve nil sin enviar si el usuario no existe, no está verificado o no tiene proveedor credentials (sin filtrar enumeración).
+func (service *Service) ForgotPassword(ctx context.Context, email string) error {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		slog.Debug("forgot password skipped: empty email after normalization")
+		return nil
+	}
+
+	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		if errors.Is(err, user.ErrNotFound) {
+			slog.Info("forgot password skipped: user not found", "email", normalizedEmail)
+			return nil
+		}
+		return fmt.Errorf("get user for forgot password: %w", err)
+	}
+	if !u.IsEmailVerified() {
+		slog.Info("forgot password skipped: user email not verified", "user_id", u.ID, "email", u.Email)
+		return nil
+	}
+
+	if _, err := service.repository.FindByProviderAndSubject(ProviderCredentials, normalizedEmail); err != nil {
+		if errors.Is(err, ErrTokenNotFound) {
+			slog.Info("forgot password skipped: credentials provider not found", "user_id", u.ID, "email", u.Email)
+			return nil
+		}
+		return fmt.Errorf("find credentials provider: %w", err)
+	}
+
+	if service.frontendURL == "" {
+		return fmt.Errorf("frontend URL is required to build password reset link")
+	}
+
+	rawToken, err := generateSecureToken()
+	if err != nil {
+		return fmt.Errorf("generate password reset token: %w", err)
+	}
+	tokenHash := hashToken(rawToken)
+	expiresAt := time.Now().Add(forgotPasswordTokenDuration)
+	u.PasswordResetTokenHash = &tokenHash
+	u.PasswordResetExpiresAt = &expiresAt
+	if err := service.userRepository.Update(u); err != nil {
+		return fmt.Errorf("store password reset token: %w", err)
+	}
+
+	link := fmt.Sprintf("%s/auth/reset-password?token=%s", service.frontendURL, rawToken)
+	expiresIn := formatPasswordResetExpiresIn(forgotPasswordTokenDuration)
+	if err := service.passwordResetNotifier.NotifyPasswordResetEmail(ctx, u.Email, u.Name, link, expiresIn); err != nil {
+		u.PasswordResetTokenHash = nil
+		u.PasswordResetExpiresAt = nil
+		if rollbackErr := service.userRepository.Update(u); rollbackErr != nil {
+			slog.Error("rollback password reset token after notify failure", "user_id", u.ID, "error", rollbackErr)
+		}
+		slog.Error("send forgot-password email", "email", u.Email, "error", err)
+		return fmt.Errorf("send forgot-password email: %w", err)
+	}
+	slog.Info("forgot password email queued", "user_id", u.ID, "email", u.Email)
+	return nil
+}
+
+// En: ResetPassword sets a new password using a valid one-time reset token and revokes all refresh tokens.
+// Es: ResetPassword establece una nueva contraseña con un token de recuperación válido de un solo uso y revoca todos los refresh tokens.
+func (service *Service) ResetPassword(rawToken, newPassword string) error {
+	rawToken = strings.TrimSpace(rawToken)
+	if rawToken == "" {
+		return ErrInvalidPasswordResetToken
+	}
+	tokenHash := hashToken(rawToken)
+	u, err := service.repository.FindByPasswordResetTokenHash(tokenHash)
+	if err != nil {
+		return err
+	}
+	if u.PasswordResetExpiresAt == nil || time.Now().After(*u.PasswordResetExpiresAt) {
+		return ErrInvalidPasswordResetToken
+	}
+	if err := u.SetPassword(newPassword); err != nil {
+		return fmt.Errorf("hash new password: %w", err)
+	}
+	u.PasswordResetTokenHash = nil
+	u.PasswordResetExpiresAt = nil
+	if err := service.userRepository.Update(u); err != nil {
+		return fmt.Errorf("update user password after reset: %w", err)
+	}
+	if err := service.repository.RevokeAllByUserID(u.ID); err != nil {
+		return fmt.Errorf("revoke refresh tokens after password reset: %w", err)
+	}
+	return nil
+}
+
+func formatPasswordResetExpiresIn(d time.Duration) string {
+	minutes := int(d.Round(time.Minute) / time.Minute)
+	if minutes < 1 {
+		minutes = 1
+	}
+	return fmt.Sprintf("%d minutes", minutes)
 }
 
 // En: Login verifies the credentials and emits a token pair in case of success.

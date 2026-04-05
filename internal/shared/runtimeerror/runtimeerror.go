@@ -18,6 +18,7 @@ const (
 	CodeEmailAlreadyExists       ErrorCode = "EMAIL_ALREADY_EXISTS"
 	CodeEmailAlreadyVerified     ErrorCode = "EMAIL_ALREADY_VERIFIED"
 	CodeInvalidVerificationToken ErrorCode = "INVALID_VERIFICATION_TOKEN"
+	CodeInvalidPasswordResetToken ErrorCode = "INVALID_PASSWORD_RESET_TOKEN"
 )
 
 // Invoice error codes.
