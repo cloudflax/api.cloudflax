@@ -23,6 +23,8 @@ type User struct {
 	EmailVerifiedAt            *time.Time     `gorm:"column:email_verified_at" json:"email_verified_at,omitempty"`
 	EmailVerificationToken     *string        `gorm:"column:email_verification_token;index" json:"-"`
 	EmailVerificationExpiresAt *time.Time     `gorm:"column:email_verification_expires_at" json:"-"`
+	PasswordResetTokenHash     *string        `gorm:"column:password_reset_token_hash;uniqueIndex" json:"-"`
+	PasswordResetExpiresAt     *time.Time     `gorm:"column:password_reset_expires_at" json:"-"`
 	ActiveAccountID            *string        `gorm:"type:uuid;column:active_account_id" json:"active_account_id,omitempty"`
 	CreatedAt                  time.Time      `json:"created_at"`
 	UpdatedAt                  time.Time      `json:"updated_at"`

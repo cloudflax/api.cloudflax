@@ -15,8 +15,9 @@ import (
 // En: Handler handles HTTP requests for authentication.
 // Es: Manejador maneja las solicitudes HTTP para la autenticación.
 type Handler struct {
-	service     *Service
-	resendGuard ResendVerificationGuard
+	service      *Service
+	resendGuard  ResendVerificationGuard
+	forgotGuard  ForgotPasswordGuard
 }
 
 // En: NewHandler creates a new auth handler.
@@ -29,6 +30,13 @@ func NewHandler(service *Service) *Handler {
 // Es: WithResendVerificationGuard define un guard opcional para reenvio.
 func (handler *Handler) WithResendVerificationGuard(guard ResendVerificationGuard) *Handler {
 	handler.resendGuard = guard
+	return handler
+}
+
+// En: WithForgotPasswordGuard sets an optional forgot-password email throttle guard.
+// Es: WithForgotPasswordGuard define un guard opcional de throttle para correo de recuperacion.
+func (handler *Handler) WithForgotPasswordGuard(guard ForgotPasswordGuard) *Handler {
+	handler.forgotGuard = guard
 	return handler
 }
 
@@ -242,6 +250,89 @@ func (handler *Handler) ResendVerification(ctx fiber.Ctx) error {
 
 	slog.Info("verification email sent", "email", req.Email)
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "If the email exists, a verification link has been sent"})
+}
+
+// En: ForgotPassword requests a password reset email for the given address.
+// Es: ForgotPassword solicita un correo de recuperacion de contraseña para la direccion dada.
+func (handler *Handler) ForgotPassword(ctx fiber.Ctx) error {
+	var req ForgotPasswordRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		slog.Debug("forgot password bind error", "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
+	}
+	if err := validator.Validate(req); err != nil {
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return runtimeError.RespondWithDetails(
+				ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	if handler.forgotGuard != nil {
+		if err := handler.forgotGuard.CheckAndConsume(ctx.Context(), req.Email, ctx.IP()); err != nil {
+			var limitErr *ForgotPasswordRateLimitError
+			if errors.As(err, &limitErr) {
+				retryAfterSeconds := int64(limitErr.RetryAfter.Seconds())
+				if retryAfterSeconds <= 0 {
+					retryAfterSeconds = 1
+				}
+				ctx.Set("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
+				return runtimeError.Respond(
+					ctx,
+					fiber.StatusTooManyRequests,
+					runtimeError.CodeRateLimited,
+					"Too many password reset requests. Try again later",
+				)
+			}
+			slog.Error("forgot password throttle", "error", err)
+			return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not process password reset request")
+		}
+	}
+
+	if err := handler.service.ForgotPassword(ctx.Context(), req.Email); err != nil {
+		slog.Error("forgot password", "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not process password reset request")
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "If the email exists and is eligible, a password reset link has been sent",
+	})
+}
+
+// En: ResetPassword sets a new password using a one-time reset token from the email link.
+// Es: ResetPassword establece una nueva contraseña usando el token de un solo uso del correo.
+func (handler *Handler) ResetPassword(ctx fiber.Ctx) error {
+	var req ResetPasswordRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		slog.Debug("reset password bind error", "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeInvalidRequestBody, "Invalid request body")
+	}
+	if err := validator.Validate(req); err != nil {
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			return runtimeError.RespondWithDetails(
+				ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeValidationError,
+				"Validation failed", toErrorDetails(ve),
+			)
+		}
+		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	if err := handler.service.ResetPassword(req.Token, req.Password); err != nil {
+		if errors.Is(err, ErrInvalidPasswordResetToken) {
+			return runtimeError.Respond(
+				ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeInvalidPasswordResetToken,
+				"Invalid or expired password reset token",
+			)
+		}
+		slog.Error("reset password", "error", err)
+		return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Password reset failed")
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Password has been reset successfully"})
 }
 
 // En: DevGetVerificationToken returns the current email verification token for a given email.

@@ -107,3 +107,17 @@ func (repository *Repository) FindByVerificationToken(token string) (*user.User,
 	}
 	return &u, nil
 }
+
+// En: FindByPasswordResetTokenHash returns the user that owns the given password reset token hash.
+// Es: FindByPasswordResetTokenHash devuelve el usuario que posee el hash del token de restablecimiento de contraseña dado.
+func (repository *Repository) FindByPasswordResetTokenHash(tokenHash string) (*user.User, error) {
+	var u user.User
+	err := repository.db.Where("password_reset_token_hash = ?", tokenHash).First(&u).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidPasswordResetToken
+		}
+		return nil, fmt.Errorf("find by password reset token hash: %w", err)
+	}
+	return &u, nil
+}

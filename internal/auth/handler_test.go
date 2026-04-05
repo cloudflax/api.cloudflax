@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -641,4 +642,72 @@ func TestDevGetVerificationTokenSuccess(test *testing.T) {
 	}
 	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
 	assert.NotEmpty(test, result.Data.Token)
+}
+
+// --- Forgot password / Reset password ---
+
+type testForgotGuard struct {
+	err error
+}
+
+func (g testForgotGuard) CheckAndConsume(_ context.Context, _, _ string) error {
+	return g.err
+}
+
+// En: TestForgotPasswordHTTPUnknownEmail returns 200 without enumeration.
+// Es: TestForgotPasswordHTTPUnknownEmail devuelve 200 sin enumeracion.
+func TestForgotPasswordHTTPUnknownEmail(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	app := fiber.New()
+	app.Post("/auth/forgot-password", handler.ForgotPassword)
+
+	body := strings.NewReader(`{"email":"nobody@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/forgot-password", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+	assert.Equal(test, fiber.StatusOK, resp.StatusCode)
+}
+
+// En: TestForgotPasswordHTTPRateLimited returns 429 with Retry-After.
+// Es: TestForgotPasswordHTTPRateLimited devuelve 429 con Retry-After.
+func TestForgotPasswordHTTPRateLimited(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	handler.WithForgotPasswordGuard(testForgotGuard{
+		err: &ForgotPasswordRateLimitError{RetryAfter: 90 * time.Minute},
+	})
+
+	app := fiber.New()
+	app.Post("/auth/forgot-password", handler.ForgotPassword)
+
+	body := strings.NewReader(`{"email":"any@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/forgot-password", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+	assert.Equal(test, fiber.StatusTooManyRequests, resp.StatusCode)
+	assert.Equal(test, "5400", resp.Header.Get("Retry-After"))
+}
+
+// En: TestResetPasswordHTTPInvalidToken returns 422.
+// Es: TestResetPasswordHTTPInvalidToken devuelve 422.
+func TestResetPasswordHTTPInvalidToken(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	app := fiber.New()
+	app.Post("/auth/reset-password", handler.ResetPassword)
+
+	body := strings.NewReader(`{"token":"bad","password":"newpass123"}`)
+	req := httptest.NewRequest("POST", "/auth/reset-password", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+	assert.Equal(test, fiber.StatusUnprocessableEntity, resp.StatusCode)
+	result := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeInvalidPasswordResetToken, result.Error.Code)
 }

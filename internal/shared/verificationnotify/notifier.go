@@ -14,3 +14,16 @@ type NoopNotifier struct{}
 func (NoopNotifier) NotifyVerificationEmail(context.Context, string, string, string) error {
 	return nil
 }
+
+// PasswordResetEmailNotifier triggers delivery of the forgot-password message (async Lambda → SES template).
+type PasswordResetEmailNotifier interface {
+	NotifyPasswordResetEmail(ctx context.Context, toEmail, name, link, expiresIn string) error
+}
+
+// NoopPasswordResetEmailNotifier is a PasswordResetEmailNotifier that does nothing.
+type NoopPasswordResetEmailNotifier struct{}
+
+// NotifyPasswordResetEmail implements PasswordResetEmailNotifier.
+func (NoopPasswordResetEmailNotifier) NotifyPasswordResetEmail(context.Context, string, string, string, string) error {
+	return nil
+}

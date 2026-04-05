@@ -40,7 +40,9 @@ type Config struct {
 
 	// Verification email is sent by Lambda (async).
 	LambdaSendVerifyEmailName string
-	APIThrottleTableName      string
+	// Forgot-password email is sent by a dedicated Lambda (async), same invocation style as verification.
+	LambdaSendForgotPasswordEmailName string
+	APIThrottleTableName              string
 
 	// JWTAccessTokenDuration is the signed JWT access token lifetime.
 	JWTAccessTokenDuration time.Duration
@@ -71,8 +73,9 @@ func Load() (*Config, error) {
 		AWSSecretAccessKey:        getEnv("AWS_SECRET_ACCESS_KEY", ""),
 		SESFromAddress:            getEnv("SES_FROM_ADDRESS", ""),
 		SESEndpointURL:            getEnv("SES_ENDPOINT_URL", ""),
-		LambdaSendVerifyEmailName: getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
-		APIThrottleTableName:      getEnv("API_THROTTLE_TABLE_NAME", ""),
+		LambdaSendVerifyEmailName:             getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
+		LambdaSendForgotPasswordEmailName:     getEnv("LAMBDA_SEND_FORGOT_PASSWORD_EMAIL_NAME", ""),
+		APIThrottleTableName:                  getEnv("API_THROTTLE_TABLE_NAME", ""),
 		JWTAccessTokenDuration:    jwtAccessTokenDurationFromEnv(),
 	}
 

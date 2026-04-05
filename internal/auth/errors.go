@@ -25,3 +25,7 @@ var ErrTokenNotFound = fmt.Errorf("refresh token not found")
 // En: ErrJWTUsedAsRefreshToken is returned when the client sends a JWT (access token) as refresh_token.
 // Es: ErrJWTUsedAsRefreshToken se devuelve cuando el cliente envía un JWT (access token) como refresh_token.
 var ErrJWTUsedAsRefreshToken = fmt.Errorf("jwt used as refresh token")
+
+// En: ErrInvalidPasswordResetToken is returned when the password reset token is invalid, expired, or already used.
+// Es: ErrInvalidPasswordResetToken se devuelve cuando el token de restablecimiento de contraseña es inválido, expiró o ya se usó.
+var ErrInvalidPasswordResetToken = fmt.Errorf("invalid password reset token")

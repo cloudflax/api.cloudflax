@@ -38,6 +38,13 @@ type verificationPayload struct {
 	Link  string `json:"link"`
 }
 
+type passwordResetPayload struct {
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Link      string `json:"link"`
+	ExpiresIn string `json:"expiresIn"`
+}
+
 // NewLambdaNotifier builds a Notifier that invokes the given function asynchronously.
 func NewLambdaNotifier(ctx context.Context, opts LambdaNotifierOptions) (*LambdaNotifier, error) {
 	fn := strings.TrimSpace(opts.FunctionName)
@@ -106,6 +113,44 @@ func (n *LambdaNotifier) NotifyVerificationEmail(ctx context.Context, toEmail, n
 	}
 
 	// Event invocations return 202; some local emulators may return 200.
+	if out.StatusCode != 202 && out.StatusCode != 200 {
+		return fmt.Errorf("lambda invoke unexpected status %d", out.StatusCode)
+	}
+	return nil
+}
+
+// NotifyPasswordResetEmail invokes the configured Lambda asynchronously with email, name, reset link, and expiresIn for SES template data.
+func (n *LambdaNotifier) NotifyPasswordResetEmail(ctx context.Context, toEmail, name, link, expiresIn string) error {
+	to := strings.TrimSpace(toEmail)
+	if to == "" {
+		return fmt.Errorf("recipient email is required")
+	}
+	if strings.TrimSpace(link) == "" {
+		return fmt.Errorf("password reset link is required")
+	}
+	if strings.TrimSpace(expiresIn) == "" {
+		return fmt.Errorf("expiresIn is required")
+	}
+
+	body, err := json.Marshal(passwordResetPayload{
+		Email:     to,
+		Name:      strings.TrimSpace(name),
+		Link:      link,
+		ExpiresIn: expiresIn,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal password reset payload: %w", err)
+	}
+
+	out, err := n.client.Invoke(ctx, &lambda.InvokeInput{
+		FunctionName:   aws.String(n.functionName),
+		InvocationType: types.InvocationTypeEvent,
+		Payload:        body,
+	})
+	if err != nil {
+		return fmt.Errorf("lambda invoke: %w", err)
+	}
+
 	if out.StatusCode != 202 && out.StatusCode != 200 {
 		return fmt.Errorf("lambda invoke unexpected status %d", out.StatusCode)
 	}

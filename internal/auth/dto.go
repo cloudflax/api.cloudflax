@@ -32,3 +32,16 @@ type LoginRequest struct {
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
+
+// En: ForgotPasswordRequest is the request body for POST /auth/forgot-password.
+// Es: ForgotPasswordRequest es el cuerpo de POST /auth/forgot-password.
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+// En: ResetPasswordRequest is the request body for POST /auth/reset-password.
+// Es: ResetPasswordRequest es el cuerpo de POST /auth/reset-password.
+type ResetPasswordRequest struct {
+	Token    string `json:"token"    validate:"required"`
+	Password string `json:"password" validate:"required,min=8,max=72"`
+}

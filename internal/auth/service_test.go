@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,39 @@ type failingNotifier struct{}
 
 func (failingNotifier) NotifyVerificationEmail(context.Context, string, string, string) error {
 	return errors.New("notifier failed")
+}
+
+type stubPasswordResetNotifier struct {
+	lastLink      string
+	lastExpiresIn string
+	err           error
+	calls         int
+}
+
+func (s *stubPasswordResetNotifier) NotifyPasswordResetEmail(ctx context.Context, toEmail, name, link, expiresIn string) error {
+	s.calls++
+	s.lastLink = link
+	s.lastExpiresIn = expiresIn
+	return s.err
+}
+
+func resetTokenFromLink(link string) string {
+	const prefix = "token="
+	idx := strings.Index(link, prefix)
+	if idx < 0 {
+		return ""
+	}
+	return link[idx+len(prefix):]
+}
+
+func seedCredentialsProvider(test *testing.T, userID, email string) {
+	test.Helper()
+	authRepo := NewRepository(database.DB)
+	require.NoError(test, authRepo.CreateAuthProvider(&UserAuthProvider{
+		UserID:            userID,
+		Provider:          ProviderCredentials,
+		ProviderSubjectID: strings.ToLower(strings.TrimSpace(email)),
+	}))
 }
 
 // En: hashTokenForTest calculates the SHA-256 hash of a test token.
@@ -331,4 +365,208 @@ func TestServiceLogoutRevokesAllTokens(test *testing.T) {
 
 	_, err = service.RefreshTokens(pair2.RefreshToken)
 	assert.ErrorIs(test, err, ErrInvalidCredentials, "second session token should be revoked after logout")
+}
+
+// En: TestServiceForgotPasswordUnknownEmail returns nil without notifying.
+// Es: TestServiceForgotPasswordUnknownEmail devuelve nil sin notificar.
+func TestServiceForgotPasswordUnknownEmail(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+
+	require.NoError(test, service.ForgotPassword(context.Background(), "nobody@example.com"))
+	assert.Equal(test, 0, stub.calls)
+}
+
+// En: TestServiceForgotPasswordUnverifiedUser does not send email.
+// Es: TestServiceForgotPasswordUnverifiedUser no envia correo.
+func TestServiceForgotPasswordUnverifiedUser(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedUser(test, "U", "u@example.com", "password123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+
+	require.NoError(test, service.ForgotPassword(context.Background(), "u@example.com"))
+	assert.Equal(test, 0, stub.calls)
+}
+
+// En: TestServiceForgotPasswordNoCredentialsProvider does not send email.
+// Es: TestServiceForgotPasswordNoCredentialsProvider no envia correo.
+func TestServiceForgotPasswordNoCredentialsProvider(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	seedVerifiedUser(test, "V", "v@example.com", "password123")
+
+	require.NoError(test, service.ForgotPassword(context.Background(), "v@example.com"))
+	assert.Equal(test, 0, stub.calls)
+}
+
+// En: TestServiceForgotPasswordSuccess stores token and notifies.
+// Es: TestServiceForgotPasswordSuccess guarda token y notifica.
+func TestServiceForgotPasswordSuccess(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedVerifiedUser(test, "W", "w@example.com", "password123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+
+	require.NoError(test, service.ForgotPassword(context.Background(), "w@example.com"))
+	require.Equal(test, 1, stub.calls)
+	assert.Contains(test, stub.lastLink, "http://test/auth/reset-password?token=")
+	assert.Equal(test, "60 minutes", stub.lastExpiresIn)
+
+	var dbUser user.User
+	require.NoError(test, database.DB.Where("id = ?", u.ID).First(&dbUser).Error)
+	require.NotNil(test, dbUser.PasswordResetTokenHash)
+	assert.NotEmpty(test, *dbUser.PasswordResetTokenHash)
+}
+
+// En: TestServiceForgotPasswordNotifyFailureRollsBackToken clears DB fields when notify fails.
+// Es: TestServiceForgotPasswordNotifyFailureRollsBackToken limpia campos en BD si falla el notify.
+func TestServiceForgotPasswordNotifyFailureRollsBackToken(test *testing.T) {
+	stub := &stubPasswordResetNotifier{err: errors.New("lambda failed")}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedVerifiedUser(test, "X", "x@example.com", "password123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+
+	err := service.ForgotPassword(context.Background(), "x@example.com")
+	require.Error(test, err)
+
+	var dbUser user.User
+	require.NoError(test, database.DB.Where("id = ?", u.ID).First(&dbUser).Error)
+	assert.Nil(test, dbUser.PasswordResetTokenHash)
+	assert.Nil(test, dbUser.PasswordResetExpiresAt)
+}
+
+// En: TestServiceResetPasswordSuccess updates password and clears token.
+// Es: TestServiceResetPasswordSuccess actualiza contraseña y limpia token.
+func TestServiceResetPasswordSuccess(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedVerifiedUser(test, "Y", "y@example.com", "oldpassword123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+	require.NoError(test, service.ForgotPassword(context.Background(), "y@example.com"))
+
+	raw := resetTokenFromLink(stub.lastLink)
+	require.NotEmpty(test, raw)
+	require.NoError(test, service.ResetPassword(raw, "newpassword456"))
+
+	var dbUser user.User
+	require.NoError(test, database.DB.Where("id = ?", u.ID).First(&dbUser).Error)
+	assert.Nil(test, dbUser.PasswordResetTokenHash)
+	assert.True(test, dbUser.CheckPassword("newpassword456"))
+}
+
+// En: TestServiceResetPasswordInvalidToken returns ErrInvalidPasswordResetToken.
+// Es: TestServiceResetPasswordInvalidToken devuelve ErrInvalidPasswordResetToken.
+func TestServiceResetPasswordInvalidToken(test *testing.T) {
+	service := setupServiceTest(test)
+	err := service.ResetPassword("not-a-valid-token", "newpassword456")
+	assert.ErrorIs(test, err, ErrInvalidPasswordResetToken)
+}
+
+// En: TestServiceResetPasswordExpiredToken is rejected.
+// Es: TestServiceResetPasswordExpiredToken rechaza token expirado.
+func TestServiceResetPasswordExpiredToken(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedVerifiedUser(test, "Z", "z@example.com", "password123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+	require.NoError(test, service.ForgotPassword(context.Background(), "z@example.com"))
+	raw := resetTokenFromLink(stub.lastLink)
+	past := time.Now().Add(-2 * time.Hour)
+	require.NoError(test, database.DB.Model(&user.User{}).Where("id = ?", u.ID).Updates(map[string]any{
+		"password_reset_expires_at": past,
+	}).Error)
+
+	err := service.ResetPassword(raw, "newpassword999")
+	assert.ErrorIs(test, err, ErrInvalidPasswordResetToken)
+}
+
+// En: TestServiceResetPasswordRevokesRefreshTokens invalidates existing sessions.
+// Es: TestServiceResetPasswordRevokesRefreshTokens invalida sesiones existentes.
+func TestServiceResetPasswordRevokesRefreshTokens(test *testing.T) {
+	stub := &stubPasswordResetNotifier{}
+	require.NoError(test, database.InitForTesting())
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	userRepository := user.NewRepository(database.DB)
+	authRepository := NewRepository(database.DB)
+	service := NewService(authRepository, userRepository, ServiceOptions{
+		JWTSecret:             testJWTSecret,
+		VerificationNotifier:  verificationnotify.NoopNotifier{},
+		PasswordResetNotifier: stub,
+		FrontendURL:           "http://test",
+	})
+	u := seedVerifiedUser(test, "R", "r@example.com", "password123")
+	seedCredentialsProvider(test, u.ID, u.Email)
+	pair, err := service.Login("r@example.com", "password123")
+	require.NoError(test, err)
+
+	require.NoError(test, service.ForgotPassword(context.Background(), "r@example.com"))
+	raw := resetTokenFromLink(stub.lastLink)
+	require.NoError(test, service.ResetPassword(raw, "resetpassword1"))
+
+	_, err = service.RefreshTokens(pair.RefreshToken)
+	assert.ErrorIs(test, err, ErrInvalidCredentials)
 }

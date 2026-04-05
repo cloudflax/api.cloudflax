@@ -60,3 +60,27 @@ func TestLambdaNotifierNotifyVerificationEmailEmptyRecipient(t *testing.T) {
 	err := n.NotifyVerificationEmail(context.Background(), "  ", "N", "https://x")
 	assert.Error(t, err)
 }
+
+func TestPasswordResetPayloadMarshal(t *testing.T) {
+	t.Parallel()
+	p := passwordResetPayload{Email: "u@x.com", Name: "U", Link: "https://app/r?t=1", ExpiresIn: "60 minutes"}
+	b, err := json.Marshal(p)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"email":"u@x.com","name":"U","link":"https://app/r?t=1","expiresIn":"60 minutes"}`, string(b))
+}
+
+func TestLambdaNotifierNotifyPasswordResetEmail(t *testing.T) {
+	t.Parallel()
+	stub := &stubLambdaClient{}
+	n := &LambdaNotifier{client: stub, functionName: "forgot-fn"}
+
+	err := n.NotifyPasswordResetEmail(context.Background(), "a@b.com", "Bob", "https://front/auth/reset-password?token=t", "60 minutes")
+	require.NoError(t, err)
+
+	var got passwordResetPayload
+	require.NoError(t, json.Unmarshal(stub.lastInput.Payload, &got))
+	assert.Equal(t, "a@b.com", got.Email)
+	assert.Equal(t, "Bob", got.Name)
+	assert.Equal(t, "https://front/auth/reset-password?token=t", got.Link)
+	assert.Equal(t, "60 minutes", got.ExpiresIn)
+}
