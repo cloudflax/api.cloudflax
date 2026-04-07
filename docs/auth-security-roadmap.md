@@ -49,10 +49,11 @@ Ajusta el orden si tu frontend o infra obligan otra secuencia; mantén anotado e
 
 | ID   | Tema | Dependencias | Estado | Spec |
 |------|------|--------------|--------|------|
-| **B1** | **Rate limit en `POST /auth/login`** (misma familia que resend/forgot o alternativa) | A3 si usas IP; tabla Dynamo o otro store | `pending` | `SPEC-B1.md` |
-| **B2** | **Rate limit en `POST /auth/refresh`** | Igual que B1 | `pending` | `SPEC-B2.md` |
+| **B1** | **Rate limit en `POST /auth/login`** (Dynamo por IP; misma tabla que throttle API) | A3 si usas IP | `done` | `internal/auth/ip_throttle_guard.go` |
+| **B2** | **Rate limit en `POST /auth/refresh`** | Igual que B1 | `done` | `internal/auth/ip_throttle_guard.go` |
+| **B3** | **Bloqueo / backoff por intentos fallidos de login** (por cuenta o email, distinto del límite por IP): contador, ventana, lockout temporal, desbloqueo (tiempo / email / admin) y mismo `INVALID_CREDENTIALS` en API | Producto + **migración** probable en `users` o store aparte; definir interacción con B1 | `pending` | `SPEC-B3.md` |
 
-*Nota:* B1/B2 pueden unificarse en un solo spec/commit si comparten implementación.
+*Notas:* B1/B2 (por IP) y **B3** (fallos por cuenta/email) son complementarias. B1/B2 ya comparten implementación en código; B3 requiere spec propio (`SPEC-B3.md`) antes de implementar.
 
 ---
 

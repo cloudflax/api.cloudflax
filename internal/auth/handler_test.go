@@ -217,6 +217,42 @@ func TestLoginCaseInsensitiveEmail(test *testing.T) {
 	assert.Equal(test, fiber.StatusOK, resp.StatusCode)
 }
 
+type testIPThrottleGuard struct {
+	err error
+}
+
+func (g testIPThrottleGuard) CheckAndConsume(_ context.Context, _ string) error {
+	return g.err
+}
+
+// En: TestLoginHTTPRateLimited returns 429 with Retry-After when the login IP throttle trips.
+// Es: TestLoginHTTPRateLimited devuelve 429 con Retry-After cuando activa el throttle de login por IP.
+func TestLoginHTTPRateLimited(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	handler.WithLoginIPThrottleGuard(testIPThrottleGuard{
+		err: &IPThrottleRateLimitError{RetryAfter: 15 * time.Minute},
+	})
+	createVerifiedTestUser(test, "Gate", "loginrate@example.com", "password123")
+
+	app := fiber.New()
+	app.Post("/auth/login", handler.Login)
+
+	body := strings.NewReader(`{"email":"loginrate@example.com","password":"password123"}`)
+	req := httptest.NewRequest("POST", "/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusTooManyRequests, resp.StatusCode)
+	assert.Equal(test, "900", resp.Header.Get("Retry-After"))
+
+	var result runtimeError.ErrorResponse
+	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(test, runtimeError.CodeRateLimited, result.Error.Code)
+}
+
 // --- Refresh ---
 
 // En: TestRefreshSuccess tests the successful refresh.
@@ -269,6 +305,34 @@ func TestRefreshInvalidToken(test *testing.T) {
 	assert.Equal(test, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := DecodeErrorResponse(test, resp.Body)
 	assert.Equal(test, runtimeError.CodeTokenInvalid, errResp.Error.Code)
+}
+
+// En: TestRefreshHTTPRateLimited returns 429 with Retry-After when the refresh IP throttle trips.
+// Es: TestRefreshHTTPRateLimited devuelve 429 con Retry-After cuando activa el throttle de refresh por IP.
+func TestRefreshHTTPRateLimited(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	handler.WithRefreshIPThrottleGuard(testIPThrottleGuard{
+		err: &IPThrottleRateLimitError{RetryAfter: 90 * time.Second},
+	})
+
+	app := fiber.New()
+	app.Post("/auth/refresh", handler.Refresh)
+
+	bodyStr, err := json.Marshal(map[string]string{"refresh_token": "opaque-"})
+	require.NoError(test, err)
+	req := httptest.NewRequest("POST", "/auth/refresh", strings.NewReader(string(bodyStr)))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusTooManyRequests, resp.StatusCode)
+	assert.Equal(test, "90", resp.Header.Get("Retry-After"))
+
+	var result runtimeError.ErrorResponse
+	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(test, runtimeError.CodeRateLimited, result.Error.Code)
 }
 
 // En: TestRefreshRejectsAccessTokenAsRefreshToken ensures JWT access tokens are not accepted as refresh_token.

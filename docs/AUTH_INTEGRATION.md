@@ -147,6 +147,7 @@ Content-Type: application/json
 | 401 | `INVALID_CREDENTIALS` | Email o password incorrectos |
 | 403 | `EMAIL_VERIFICATION_REQUIRED` | Cuenta sin email verificado |
 | 422 | `VALIDATION_ERROR` | Email inválido o password con menos de 8 caracteres |
+| 429 | `RATE_LIMITED` | Demasiados intentos desde la misma IP (si `API_THROTTLE_TABLE_NAME` está configurada). Cabecera `Retry-After`. |
 
 ---
 
@@ -185,6 +186,7 @@ Content-Type: application/json
 | 400 | `REFRESH_TOKEN_WRONG_FORMAT` | Se envió el JWT de acceso en lugar del refresh opaco |
 | 401 | `TOKEN_INVALID` | Refresh inválido, ya usado o expirado |
 | 403 | `EMAIL_VERIFICATION_REQUIRED` | Usuario sin email verificado |
+| 429 | `RATE_LIMITED` | Demasiados refresh desde la misma IP (misma condición que login). Cabecera `Retry-After`. |
 
 ---
 
@@ -413,6 +415,7 @@ export async function POST() {
 | `PROXY_HEADER` | Cabecera de IP del cliente cuando `TRUST_PROXY=true`. | `X-Forwarded-For` |
 | `TRUST_PROXY_TRUST_PRIVATE` | Confiar en proxies en rangos RFC1918 (típico detrás de ALB en VPC). | `true` |
 | `TRUST_PROXY_TRUST_LOOPBACK` | Confiar en loopback (útil en algunos setups locales con proxy). | `false` |
+| `API_THROTTLE_TABLE_NAME` | Tabla DynamoDB para límites: resend, forgot-password, **login y refresh por IP**. Vacío → esos throttles desactivados. | — |
 
 ### Frontend (Next.js)
 
@@ -432,6 +435,7 @@ export async function POST() {
 | `UNAUTHORIZED` | 401 | Endpoint protegido sin `Authorization` o sin esquema `Bearer` |
 | `TOKEN_INVALID` | 401 | JWT de acceso malformado, firma incorrecta o expirado; también refresh inválido/revocado en `/auth/refresh` |
 | `REFRESH_TOKEN_WRONG_FORMAT` | 400 | Se envió un JWT como `refresh_token` en lugar del token opaco |
+| `RATE_LIMITED` | 429 | Login o refresh con throttle por IP (Dynamo); incluye `Retry-After` |
 | `TOKEN_EXPIRED` | — | Definido en la API; el middleware de acceso actual devuelve `TOKEN_INVALID` cuando el JWT expira |
 
 ---

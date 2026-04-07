@@ -15,9 +15,11 @@ import (
 // En: Handler handles HTTP requests for authentication.
 // Es: Manejador maneja las solicitudes HTTP para la autenticación.
 type Handler struct {
-	service      *Service
-	resendGuard  ResendVerificationGuard
-	forgotGuard  ForgotPasswordGuard
+	service         *Service
+	resendGuard     ResendVerificationGuard
+	forgotGuard     ForgotPasswordGuard
+	loginThrottle   IPThrottleGuard
+	refreshThrottle IPThrottleGuard
 }
 
 // En: NewHandler creates a new auth handler.
@@ -40,6 +42,20 @@ func (handler *Handler) WithForgotPasswordGuard(guard ForgotPasswordGuard) *Hand
 	return handler
 }
 
+// En: WithLoginIPThrottleGuard sets an optional per-IP throttle for POST /auth/login.
+// Es: WithLoginIPThrottleGuard define throttle opcional por IP para login.
+func (handler *Handler) WithLoginIPThrottleGuard(guard IPThrottleGuard) *Handler {
+	handler.loginThrottle = guard
+	return handler
+}
+
+// En: WithRefreshIPThrottleGuard sets an optional per-IP throttle for POST /auth/refresh.
+// Es: WithRefreshIPThrottleGuard define throttle opcional por IP para refresh.
+func (handler *Handler) WithRefreshIPThrottleGuard(guard IPThrottleGuard) *Handler {
+	handler.refreshThrottle = guard
+	return handler
+}
+
 // En: Login authenticates a user and returns an access + refresh token pair.
 // Es: Inicia sesión de un usuario y devuelve un par de tokens de acceso y actualización.
 func (handler *Handler) Login(ctx fiber.Ctx) error {
@@ -59,6 +75,27 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 			)
 		}
 		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	if handler.loginThrottle != nil {
+		if err := handler.loginThrottle.CheckAndConsume(ctx.Context(), ctx.IP()); err != nil {
+			var limitErr *IPThrottleRateLimitError
+			if errors.As(err, &limitErr) {
+				retryAfterSeconds := int64(limitErr.RetryAfter.Seconds())
+				if retryAfterSeconds <= 0 {
+					retryAfterSeconds = 1
+				}
+				ctx.Set("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
+				return runtimeError.Respond(
+					ctx,
+					fiber.StatusTooManyRequests,
+					runtimeError.CodeRateLimited,
+					"Too many login attempts. Try again later",
+				)
+			}
+			slog.Error("login ip throttle", "error", err)
+			return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Login failed")
+		}
 	}
 
 	pair, err := handler.service.Login(req.Email, req.Password)
@@ -94,6 +131,27 @@ func (handler *Handler) Refresh(ctx fiber.Ctx) error {
 			)
 		}
 		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
+	}
+
+	if handler.refreshThrottle != nil {
+		if err := handler.refreshThrottle.CheckAndConsume(ctx.Context(), ctx.IP()); err != nil {
+			var limitErr *IPThrottleRateLimitError
+			if errors.As(err, &limitErr) {
+				retryAfterSeconds := int64(limitErr.RetryAfter.Seconds())
+				if retryAfterSeconds <= 0 {
+					retryAfterSeconds = 1
+				}
+				ctx.Set("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
+				return runtimeError.Respond(
+					ctx,
+					fiber.StatusTooManyRequests,
+					runtimeError.CodeRateLimited,
+					"Too many refresh attempts. Try again later",
+				)
+			}
+			slog.Error("refresh ip throttle", "error", err)
+			return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Token refresh failed")
+		}
 	}
 
 	pair, err := handler.service.RefreshTokens(req.RefreshToken)
