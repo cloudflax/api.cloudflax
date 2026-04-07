@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,9 +16,19 @@ import (
 type Config struct {
 	Port        string
 	LogLevel    string // debug, info, warn, error
+	AppEnv      string
 	JWTSecret   string
 	AppURL      string
 	FrontendURL string
+
+	// EnableAuthDevEndpoints exposes POST /auth/dev/* helpers when true and AppEnv is not production.
+	EnableAuthDevEndpoints bool
+
+	// TrustProxy enables reading client IP from ProxyHeader when the direct peer is a trusted proxy.
+	TrustProxy           bool
+	ProxyHeader          string
+	TrustProxyPrivate    bool
+	TrustProxyLoopback   bool
 
 	DBHost        string
 	DBPort        int
@@ -57,15 +68,26 @@ var (
 // Load loads the configuration. DB credentials come from AWS Secrets Manager.
 // Server settings (PORT, LOG_LEVEL) and DB_SSL_MODE come from environment variables.
 func Load() (*Config, error) {
+	proxyHeader := strings.TrimSpace(getEnv("PROXY_HEADER", "X-Forwarded-For"))
+	if proxyHeader == "" {
+		proxyHeader = "X-Forwarded-For"
+	}
+	appEnv := strings.TrimSpace(getEnv("APP_ENV", ""))
 	cfg := &Config{
 		Port:                      getEnv("PORT", ""),
 		LogLevel:                  getEnv("LOG_LEVEL", ""),
+		AppEnv:                    appEnv,
 		DBSSLMode:                 getEnv("DB_SSL_MODE", ""),
 		DBSSLRootCert:             getEnv("DB_SSL_ROOT_CERT", ""),
 		DBSlowQueryThresholdMS:    resolveSlowQueryThresholdMS(),
 		JWTSecret:                 getEnv("JWT_SECRET", ""),
 		AppURL:                    getEnv("APP_URL", ""),
 		FrontendURL:               getEnv("FRONTEND_URL", ""),
+		EnableAuthDevEndpoints:    envBool("ENABLE_AUTH_DEV_ENDPOINTS", false),
+		TrustProxy:                envBool("TRUST_PROXY", false),
+		ProxyHeader:               proxyHeader,
+		TrustProxyPrivate:         envBool("TRUST_PROXY_TRUST_PRIVATE", true),
+		TrustProxyLoopback:        envBool("TRUST_PROXY_TRUST_LOOPBACK", false),
 		AWSRegion:                 getEnv("AWS_REGION", ""),
 		AWSProfile:                getEnv("AWS_PROFILE", ""),
 		AWSEndpointURL:            awsEndpointURL(),
@@ -206,4 +228,20 @@ func awsEndpointURL() string {
 func jwtAccessTokenDurationFromEnv() time.Duration {
 	mins := getEnvInt("JWT_ACCESS_TOKEN_DURATION_MINUTES", 15)
 	return time.Duration(mins) * time.Minute
+}
+
+// envBool parses common truthy/falsey environment strings; empty uses defaultVal.
+func envBool(key string, defaultVal bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return defaultVal
+	}
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultVal
+	}
 }

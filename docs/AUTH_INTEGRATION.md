@@ -210,9 +210,9 @@ Authorization: Bearer <access_token>
 
 ---
 
-### POST `/auth/dev/verify-email-token` (solo no producción)
+### POST `/auth/dev/verify-email-token` (solo desarrollo explícito)
 
-Si `APP_ENV` ≠ `production`, el backend expone este helper de desarrollo: devuelve un token de verificación para un email (también regenera el token vía la misma lógica que resend). **No usar en producción.**
+Solo se monta si **`ENABLE_AUTH_DEV_ENDPOINTS`** es verdadero (`true` / `1` / `yes` / `on`) **y** `APP_ENV` ≠ `production`. Devuelve el **token de verificación ya existente** (no envía correo ni lo rota). Si no hay token pendiente, responde `422` con `INVALID_VERIFICATION_TOKEN` y mensaje orientativo.
 
 ---
 
@@ -407,7 +407,12 @@ export async function POST() {
 | `FRONTEND_URL` | Origen del frontend: CORS (`AllowOrigins`) y enlaces `.../auth/verify-email?token=` en el correo. | `http://localhost:3001` |
 | `JWT_ACCESS_TOKEN_DURATION_MINUTES` | Duración del access token (minutos). Por defecto `15`. | `15` |
 | `LAMBDA_SEND_VERIFY_EMAIL_NAME` | Nombre de la función Lambda que envía el email de verificación; vacío → no se envía correo (notifier noop). | — |
-| `APP_ENV` | Si es `production`, se oculta `POST /auth/dev/verify-email-token`. | `development` |
+| `APP_ENV` | Entorno; con `production` no se montan rutas `/auth/dev/*` aunque el flag de abajo esté en true. | `development` |
+| `ENABLE_AUTH_DEV_ENDPOINTS` | `true` para exponer `POST /auth/dev/verify-email-token` fuera de producción. En producción debe ser `false` o ausente. | `true` (solo local) |
+| `TRUST_PROXY` | `true` si la API está detrás de proxy y se debe tomar la IP del cliente desde `PROXY_HEADER` (p. ej. throttling por IP). | `false` |
+| `PROXY_HEADER` | Cabecera de IP del cliente cuando `TRUST_PROXY=true`. | `X-Forwarded-For` |
+| `TRUST_PROXY_TRUST_PRIVATE` | Confiar en proxies en rangos RFC1918 (típico detrás de ALB en VPC). | `true` |
+| `TRUST_PROXY_TRUST_LOOPBACK` | Confiar en loopback (útil en algunos setups locales con proxy). | `false` |
 
 ### Frontend (Next.js)
 

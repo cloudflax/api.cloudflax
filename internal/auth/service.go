@@ -197,6 +197,26 @@ func (service *Service) ResendVerification(email string) (string, error) {
 	return token, nil
 }
 
+// En: PeekEmailVerificationToken returns the current verification token without sending email or rotating it.
+// Es: PeekEmailVerificationToken devuelve el token de verificación actual sin enviar correo ni rotarlo.
+func (service *Service) PeekEmailVerificationToken(email string) (string, error) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return "", err
+	}
+	if u.IsEmailVerified() {
+		return "", ErrEmailAlreadyVerified
+	}
+	if u.EmailVerificationToken == nil || strings.TrimSpace(*u.EmailVerificationToken) == "" {
+		return "", ErrNoPendingVerificationToken
+	}
+	if u.EmailVerificationExpiresAt != nil && time.Now().After(*u.EmailVerificationExpiresAt) {
+		return "", ErrInvalidVerificationToken
+	}
+	return *u.EmailVerificationToken, nil
+}
+
 // En: ForgotPassword issues a one-time password reset token and enqueues the reset email for eligible users.
 // Returns nil without sending when the user does not exist, is unverified, or has no credentials provider (enumeration-safe).
 // Es: ForgotPassword emite un token de un solo uso y encola el correo de recuperación para usuarios elegibles.

@@ -359,7 +359,7 @@ func (handler *Handler) DevGetVerificationToken(ctx fiber.Ctx) error {
 		return runtimeError.Respond(ctx, fiber.StatusBadRequest, runtimeError.CodeValidationError, err.Error())
 	}
 
-	token, err := handler.service.ResendVerification(req.Email)
+	token, err := handler.service.PeekEmailVerificationToken(req.Email)
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyVerified) {
 			return runtimeError.Respond(ctx, fiber.StatusConflict, runtimeError.CodeEmailAlreadyVerified, "Email is already verified")
@@ -367,8 +367,17 @@ func (handler *Handler) DevGetVerificationToken(ctx fiber.Ctx) error {
 		if errors.Is(err, user.ErrNotFound) {
 			return runtimeError.Respond(ctx, fiber.StatusNotFound, runtimeError.CodeUserNotFound, "User not found")
 		}
+		if errors.Is(err, ErrNoPendingVerificationToken) {
+			return runtimeError.Respond(
+				ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeInvalidVerificationToken,
+				"No pending verification token; use POST /auth/resend-verification if needed",
+			)
+		}
+		if errors.Is(err, ErrInvalidVerificationToken) {
+			return runtimeError.Respond(ctx, fiber.StatusUnprocessableEntity, runtimeError.CodeInvalidVerificationToken, "Verification token expired")
+		}
 		slog.Error("dev get verification token", "email", req.Email, "error", err)
-		return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not generate verification token")
+		return runtimeError.Respond(ctx, fiber.StatusInternalServerError, runtimeError.CodeInternalServerError, "Could not read verification token")
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{

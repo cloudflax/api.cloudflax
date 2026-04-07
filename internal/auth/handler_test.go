@@ -641,7 +641,29 @@ func TestDevGetVerificationTokenSuccess(test *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(test, json.NewDecoder(resp.Body).Decode(&result))
-	assert.NotEmpty(test, result.Data.Token)
+	assert.Equal(test, tokenFromRegister, result.Data.Token)
+}
+
+// En: TestDevGetVerificationTokenNoPending returns 422 when there is no verification token.
+// Es: TestDevGetVerificationTokenNoPending devuelve 422 cuando no hay token pendiente.
+func TestDevGetVerificationTokenNoPending(test *testing.T) {
+	handler, _ := SetupAuthHandlerTest(test)
+	seedUser(test, "No Token User", "notoken@example.com", "password123")
+
+	app := fiber.New()
+	app.Post("/auth/dev/verify-email-token", handler.DevGetVerificationToken)
+
+	body := strings.NewReader(`{"email":"notoken@example.com"}`)
+	req := httptest.NewRequest("POST", "/auth/dev/verify-email-token", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusUnprocessableEntity, resp.StatusCode)
+	result := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeInvalidVerificationToken, result.Error.Code)
 }
 
 // --- Forgot password / Reset password ---

@@ -6,6 +6,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEnvBool(t *testing.T) {
+	t.Run("empty uses default", func(t *testing.T) {
+		t.Setenv("TEST_ENV_BOOL_X", "")
+		assert.True(t, envBool("TEST_ENV_BOOL_X", true))
+		assert.False(t, envBool("TEST_ENV_BOOL_X", false))
+	})
+	t.Run("truthy", func(t *testing.T) {
+		for _, v := range []string{"1", "true", "TRUE", "yes", "On"} {
+			t.Setenv("TEST_ENV_BOOL_Y", v)
+			assert.True(t, envBool("TEST_ENV_BOOL_Y", false), v)
+		}
+	})
+	t.Run("falsey", func(t *testing.T) {
+		for _, v := range []string{"0", "false", "no", "off"} {
+			t.Setenv("TEST_ENV_BOOL_Z", v)
+			assert.False(t, envBool("TEST_ENV_BOOL_Z", true), v)
+		}
+	})
+}
+
 func TestResolveSlowQueryThresholdMS(t *testing.T) {
 	tests := []struct {
 		name     string

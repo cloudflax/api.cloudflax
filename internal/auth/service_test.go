@@ -141,6 +141,22 @@ func TestServiceLoginEmailNotVerified(test *testing.T) {
 	assert.ErrorIs(test, err, ErrEmailNotVerified)
 }
 
+// En: TestServicePeekEmailVerificationToken tests peek without resend side effects.
+// Es: TestServicePeekEmailVerificationToken prueba la lectura del token sin efectos de reenvío.
+func TestServicePeekEmailVerificationToken(test *testing.T) {
+	service := setupServiceTest(test)
+	_, tokenFromRegister, err := service.Register("Peek User", "peek@example.com", "password123")
+	require.NoError(test, err)
+	require.NotEmpty(test, tokenFromRegister)
+
+	got, err := service.PeekEmailVerificationToken("peek@example.com")
+	require.NoError(test, err)
+	assert.Equal(test, tokenFromRegister, got)
+
+	_, err = service.PeekEmailVerificationToken("missing@example.com")
+	assert.ErrorIs(test, err, user.ErrNotFound)
+}
+
 // En: TestServiceValidateAccessTokenValid tests the validation of a valid access token.
 // Es: TestServiceValidateAccessTokenValid prueba la validación de token de acceso válido.
 func TestServiceValidateAccessTokenValid(test *testing.T) {

@@ -29,3 +29,7 @@ var ErrJWTUsedAsRefreshToken = fmt.Errorf("jwt used as refresh token")
 // En: ErrInvalidPasswordResetToken is returned when the password reset token is invalid, expired, or already used.
 // Es: ErrInvalidPasswordResetToken se devuelve cuando el token de restablecimiento de contraseña es inválido, expiró o ya se usó.
 var ErrInvalidPasswordResetToken = fmt.Errorf("invalid password reset token")
+
+// En: ErrNoPendingVerificationToken is returned when no active verification token exists for the user (e.g. dev peek).
+// Es: ErrNoPendingVerificationToken se devuelve cuando no hay token de verificación activo (p. ej. lectura en dev).
+var ErrNoPendingVerificationToken = fmt.Errorf("no pending email verification token")

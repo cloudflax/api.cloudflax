@@ -65,7 +65,8 @@ func Mount(app *fiber.App, cfg *config.Config) {
 		authHandler = authHandler.WithForgotPasswordGuard(forgotGuard)
 	}
 	requireAuth := middleware.RequireAuth(authService)
-	auth.Routes(app, authHandler, requireAuth)
+	mountDev := cfg.EnableAuthDevEndpoints && !strings.EqualFold(cfg.AppEnv, "production")
+	auth.Routes(app, authHandler, requireAuth, mountDev)
 
 	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
 	userHandler := user.NewHandler(userService).WithAccountLister(&accountListerAdapter{service: accountService})
