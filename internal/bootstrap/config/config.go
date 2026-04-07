@@ -184,6 +184,10 @@ func (c *Config) Validate() error {
 	if c.JWTAccessTokenDuration > 7*24*time.Hour {
 		return fmt.Errorf("JWT_ACCESS_TOKEN_DURATION_MINUTES must not exceed 10080 (7 days)")
 	}
+	// Reject ENABLE_AUTH_DEV_ENDPOINTS with APP_ENV=production (routes already omit /auth/dev in that case).
+	if strings.EqualFold(strings.TrimSpace(c.AppEnv), "production") && c.EnableAuthDevEndpoints {
+		return fmt.Errorf("ENABLE_AUTH_DEV_ENDPOINTS must be false or unset when APP_ENV is production")
+	}
 	return nil
 }
 

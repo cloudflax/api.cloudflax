@@ -87,7 +87,8 @@ El `docker-compose.yml` del DevContainer carga automáticamente el `.env` median
 
 | Variable      | Descripción        | Default    |
 |---------------|--------------------|------------|
-| `APP_ENV`     | Entorno (`development`, `production`) | `development` |
+| `APP_ENV`     | Entorno (`development`, `production`). En producción debe ser `production` (el arranque rechaza `ENABLE_AUTH_DEV_ENDPOINTS=true` con este valor). | (vacío en Load; localmente `development`) |
+| `ENABLE_AUTH_DEV_ENDPOINTS` | Expone rutas `/auth/dev/*` fuera de producción. En producción: `false` o ausente. | `false` |
 | `PORT`        | Puerto de la API   | `3000`     |
 | `LOG_LEVEL`   | Nivel de log: `debug`, `info`, `warn`, `error` | `info` |
 | `APP_URL`     | URL base de la aplicación | `http://localhost:3000` |

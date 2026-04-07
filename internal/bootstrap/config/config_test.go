@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -78,4 +79,48 @@ func TestResolveSlowQueryThresholdMS(t *testing.T) {
 			assert.Equal(t, tt.wantMS, resolveSlowQueryThresholdMS())
 		})
 	}
+}
+
+func TestConfigValidateProductionVsAuthDevEndpoints(t *testing.T) {
+	t.Run("production with dev auth endpoints fails", func(t *testing.T) {
+		cfg := &Config{
+			Port:                   "3000",
+			AppEnv:                 "production",
+			JWTSecret:              "x",
+			DBHost:                 "h",
+			DBUser:                 "u",
+			DBName:                 "n",
+			EnableAuthDevEndpoints: true,
+			JWTAccessTokenDuration: 15 * time.Minute,
+		}
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ENABLE_AUTH_DEV_ENDPOINTS")
+	})
+	t.Run("production with dev endpoints off is ok", func(t *testing.T) {
+		cfg := &Config{
+			Port:                   "3000",
+			AppEnv:                 "production",
+			JWTSecret:              "x",
+			DBHost:                 "h",
+			DBUser:                 "u",
+			DBName:                 "n",
+			EnableAuthDevEndpoints: false,
+			JWTAccessTokenDuration: 15 * time.Minute,
+		}
+		assert.NoError(t, cfg.Validate())
+	})
+	t.Run("staging with dev endpoints allowed", func(t *testing.T) {
+		cfg := &Config{
+			Port:                   "3000",
+			AppEnv:                 "staging",
+			JWTSecret:              "x",
+			DBHost:                 "h",
+			DBUser:                 "u",
+			DBName:                 "n",
+			EnableAuthDevEndpoints: true,
+			JWTAccessTokenDuration: 15 * time.Minute,
+		}
+		assert.NoError(t, cfg.Validate())
+	})
 }

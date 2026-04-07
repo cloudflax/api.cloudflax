@@ -30,7 +30,7 @@ Ajusta el orden si tu frontend o infra obligan otra secuencia; mantén anotado e
 | ID   | Tema | Notas | Estado | Spec |
 |------|------|--------|--------|------|
 | **Z0** | Registrar ítems `deferred` | Por defecto: fases **D/E/F** y **C2** pueden esperar hasta priorizar producto/infra | `done` | — |
-| **Z1** | Asegurar `APP_ENV=production` en prod y `ENABLE_AUTH_DEV_ENDPOINTS` desactivado | Staging: revisar flags explícitos | `pending` | opcional |
+| **Z1** | Asegurar `APP_ENV=production` en prod y `ENABLE_AUTH_DEV_ENDPOINTS` desactivado | Staging: revisar flags explícitos. Ítem cerrado en el alcance de **#20**. | `done` | `Config.Validate`, README, `.env.example` |
 
 ---
 
