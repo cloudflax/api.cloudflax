@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"time"
 )
 
 // Init configures slog as the default logger.
 // Uses JSON in production (stdout) and supports LOG_LEVEL (debug, info, warn, error).
+// Timestamps are UTC in the form "2006-01-02 15:04:05 UTC" (easier to scan than RFC3339 without zone).
 // Call at program startup so all logs use this format. Level is output in lowercase.
 func Init(logLevel string) {
 	if logLevel == "" {
@@ -26,7 +26,8 @@ func Init(logLevel string) {
 			}
 			if a.Key == slog.TimeKey {
 				t := a.Value.Time()
-				return slog.Attr{Key: slog.TimeKey, Value: slog.StringValue(t.UTC().Format(time.RFC3339[:19]))}
+				formatted := t.UTC().Format("2006-01-02 15:04:05") + " UTC"
+				return slog.Attr{Key: slog.TimeKey, Value: slog.StringValue(formatted)}
 			}
 			return a
 		},
