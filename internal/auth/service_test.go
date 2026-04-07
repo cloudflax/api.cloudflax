@@ -67,7 +67,7 @@ func hashTokenForTest(raw string) string {
 func setupServiceTest(test *testing.T) *Service {
 	test.Helper()
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
@@ -139,6 +139,94 @@ func TestServiceLoginEmailNotVerified(test *testing.T) {
 
 	_, err := service.Login("unverified@example.com", "password123")
 	assert.ErrorIs(test, err, ErrEmailNotVerified)
+}
+
+// En: TestServiceLoginCredentialLockoutAfterMaxFailures locks the email after repeated wrong passwords (B3).
+// Es: TestServiceLoginCredentialLockoutAfterMaxFailures bloquea el email tras contraseñas incorrectas repetidas (B3).
+func TestServiceLoginCredentialLockoutAfterMaxFailures(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Lock", "lockme@example.com", "rightpass")
+
+	for range loginCredentialLockoutMaxFailures - 1 {
+		_, err := service.Login("lockme@example.com", "wrong")
+		require.ErrorIs(test, err, ErrInvalidCredentials)
+	}
+	_, err := service.Login("lockme@example.com", "rightpass")
+	require.NoError(test, err)
+
+	for range loginCredentialLockoutMaxFailures {
+		_, err := service.Login("lockme@example.com", "wrong")
+		require.ErrorIs(test, err, ErrInvalidCredentials)
+	}
+
+	_, err = service.Login("lockme@example.com", "rightpass")
+	var lockErr *CredentialsLockedError
+	require.ErrorAs(test, err, &lockErr)
+	assert.Greater(test, lockErr.RetryAfter, time.Duration(0))
+	assert.LessOrEqual(test, lockErr.RetryAfter, loginCredentialLockoutDuration+time.Second)
+}
+
+// En: TestServiceLoginCredentialLockoutUnknownEmail applies the same counters to non-existent addresses.
+// Es: TestServiceLoginCredentialLockoutUnknownEmail aplica los mismos contadores a direcciones inexistentes.
+func TestServiceLoginCredentialLockoutUnknownEmail(test *testing.T) {
+	service := setupServiceTest(test)
+	email := "nouser@example.com"
+
+	for range loginCredentialLockoutMaxFailures {
+		_, err := service.Login(email, "any")
+		require.ErrorIs(test, err, ErrInvalidCredentials)
+	}
+	_, err := service.Login(email, "any")
+	var lockUnknown *CredentialsLockedError
+	require.ErrorAs(test, err, &lockUnknown)
+	assert.Greater(test, lockUnknown.RetryAfter, time.Duration(0))
+}
+
+// En: TestServiceLoginClearsCredentialLockoutOnSuccess removes counters after a valid login.
+// Es: TestServiceLoginClearsCredentialLockoutOnSuccess elimina contadores tras un login valido.
+func TestServiceLoginClearsCredentialLockoutOnSuccess(test *testing.T) {
+	service := setupServiceTest(test)
+	seedVerifiedUser(test, "Clear", "clear@example.com", "password123")
+
+	for range 3 {
+		_, err := service.Login("clear@example.com", "wrong")
+		require.ErrorIs(test, err, ErrInvalidCredentials)
+	}
+
+	pair, err := service.Login("clear@example.com", "password123")
+	require.NoError(test, err)
+	require.NotNil(test, pair)
+
+	var count int64
+	require.NoError(test, database.DB.Model(&LoginCredentialLockout{}).Where("email_normalized = ?", "clear@example.com").Count(&count).Error)
+	assert.Equal(test, int64(0), count)
+}
+
+// En: TestServiceResetPasswordClearsCredentialLockout resets lockout state after a successful password reset.
+// Es: TestServiceResetPasswordClearsCredentialLockout reinicia el bloqueo tras un reset de contraseña exitoso.
+func TestServiceResetPasswordClearsCredentialLockout(test *testing.T) {
+	service := setupServiceTest(test)
+	u := seedVerifiedUser(test, "ResetLock", "resetlock@example.com", "oldpass")
+
+	lockUntil := time.Now().Add(loginCredentialLockoutDuration)
+	require.NoError(test, database.DB.Create(&LoginCredentialLockout{
+		EmailNormalized: u.Email,
+		FailedCount:     loginCredentialLockoutMaxFailures,
+		WindowStart:     time.Now(),
+		LockedUntil:     &lockUntil,
+	}).Error)
+
+	rawToken := "reset-clear-lockout-token"
+	require.NoError(test, database.DB.Model(u).Updates(map[string]any{
+		"password_reset_token_hash": hashTokenForTest(rawToken),
+		"password_reset_expires_at": time.Now().Add(time.Hour),
+	}).Error)
+
+	require.NoError(test, service.ResetPassword(rawToken, "newpass12345"))
+
+	var count int64
+	require.NoError(test, database.DB.Model(&LoginCredentialLockout{}).Where("email_normalized = ?", u.Email).Count(&count).Error)
+	assert.Equal(test, int64(0), count)
 }
 
 // En: TestServicePeekEmailVerificationToken tests peek without resend side effects.
@@ -345,7 +433,7 @@ func TestServiceResendVerificationAlreadyVerified(test *testing.T) {
 // Es: TestServiceResendVerificationEmailSendFailure devuelve error si falla notifier.
 func TestServiceResendVerificationEmailSendFailure(test *testing.T) {
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
@@ -388,7 +476,7 @@ func TestServiceLogoutRevokesAllTokens(test *testing.T) {
 func TestServiceForgotPasswordUnknownEmail(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -407,7 +495,7 @@ func TestServiceForgotPasswordUnknownEmail(test *testing.T) {
 func TestServiceForgotPasswordUnverifiedUser(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -428,7 +516,7 @@ func TestServiceForgotPasswordUnverifiedUser(test *testing.T) {
 func TestServiceForgotPasswordNoCredentialsProvider(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -448,7 +536,7 @@ func TestServiceForgotPasswordNoCredentialsProvider(test *testing.T) {
 func TestServiceForgotPasswordSuccess(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -476,7 +564,7 @@ func TestServiceForgotPasswordSuccess(test *testing.T) {
 func TestServiceForgotPasswordNotifyFailureRollsBackToken(test *testing.T) {
 	stub := &stubPasswordResetNotifier{err: errors.New("lambda failed")}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -502,7 +590,7 @@ func TestServiceForgotPasswordNotifyFailureRollsBackToken(test *testing.T) {
 func TestServiceResetPasswordSuccess(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -538,7 +626,7 @@ func TestServiceResetPasswordInvalidToken(test *testing.T) {
 func TestServiceResetPasswordExpiredToken(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{
@@ -565,7 +653,7 @@ func TestServiceResetPasswordExpiredToken(test *testing.T) {
 func TestServiceResetPasswordRevokesRefreshTokens(test *testing.T) {
 	stub := &stubPasswordResetNotifier{}
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
 	service := NewService(authRepository, userRepository, ServiceOptions{

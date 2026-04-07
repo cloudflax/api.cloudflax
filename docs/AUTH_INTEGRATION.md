@@ -147,6 +147,7 @@ Content-Type: application/json
 | 401 | `INVALID_CREDENTIALS` | Email o password incorrectos |
 | 403 | `EMAIL_VERIFICATION_REQUIRED` | Cuenta sin email verificado |
 | 422 | `VALIDATION_ERROR` | Email inválido o password con menos de 8 caracteres |
+| 429 | `CREDENTIALS_LOCKED` | Demasiados intentos fallidos para ese email (bloqueo temporal). Cabecera `Retry-After`; en el JSON, `error.retry_after_seconds`. |
 | 429 | `RATE_LIMITED` | Demasiados intentos desde la misma IP (si `API_THROTTLE_TABLE_NAME` está configurada). Cabecera `Retry-After`. |
 
 ---

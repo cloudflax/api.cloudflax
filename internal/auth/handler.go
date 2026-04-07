@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/requestctx"
 	runtimeError "github.com/cloudflax/api.cloudflax/internal/shared/runtimeerror"
@@ -100,6 +101,14 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 
 	pair, err := handler.service.Login(req.Email, req.Password)
 	if err != nil {
+		var locked *CredentialsLockedError
+		if errors.As(err, &locked) {
+			retrySecs := int64(locked.RetryAfter.Round(time.Second) / time.Second)
+			if retrySecs < 1 {
+				retrySecs = 1
+			}
+			return runtimeError.RespondCredentialsLocked(ctx, retrySecs)
+		}
 		if errors.Is(err, ErrInvalidCredentials) {
 			return runtimeError.Respond(ctx, fiber.StatusUnauthorized, runtimeError.CodeInvalidCredentials, "Invalid email or password")
 		}

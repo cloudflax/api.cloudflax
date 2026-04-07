@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := database.RunMigrations(&user.User{}, &auth.UserAuthProvider{}, &auth.RefreshToken{}, &account.Account{}, &account.AccountMember{}, &invoice.Invoice{}); err != nil {
+	if err := database.RunMigrations(&user.User{}, &auth.UserAuthProvider{}, &auth.RefreshToken{}, &auth.LoginCredentialLockout{}, &account.Account{}, &account.AccountMember{}, &invoice.Invoice{}); err != nil {
 		slog.Error("migrations", "error", err)
 		os.Exit(1)
 	}

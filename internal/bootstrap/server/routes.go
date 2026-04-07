@@ -88,7 +88,9 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	mountDev := cfg.EnableAuthDevEndpoints && !strings.EqualFold(cfg.AppEnv, "production")
 	auth.Routes(app, authHandler, requireAuth, mountDev)
 
-	userService := user.NewService(userRepository).WithTokenRevoker(authRepository)
+	userService := user.NewService(userRepository).
+		WithTokenRevoker(authRepository).
+		WithLoginCredentialLockoutClearer(authRepository)
 	userHandler := user.NewHandler(userService).WithAccountLister(&accountListerAdapter{service: accountService})
 	user.Routes(app, userHandler, requireAuth)
 

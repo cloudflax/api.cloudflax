@@ -1,10 +1,24 @@
 package auth
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // En: ErrInvalidCredentials is returned when login credentials are wrong or refresh token is invalid/expired.
 // Es: ErrInvalidCredentials se devuelve cuando las credenciales de inicio de sesión son incorrectas o el token de actualización es inválido/expirado.
 var ErrInvalidCredentials = fmt.Errorf("invalid credentials")
+
+// En: CredentialsLockedError is returned when login is blocked after repeated failed password attempts for the email.
+// Es: CredentialsLockedError se devuelve cuando el login está bloqueado tras contraseñas incorrectas repetidas.
+type CredentialsLockedError struct {
+	RetryAfter time.Duration
+}
+
+// Error implements error.
+func (e *CredentialsLockedError) Error() string {
+	return "credentials temporarily locked"
+}
 
 // En: ErrInvalidVerificationToken is returned when the email verification token is invalid or expired.
 // Es: ErrInvalidVerificationToken se devuelve cuando el token de verificación de correo electrónico es inválido o expirado.

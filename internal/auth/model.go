@@ -83,3 +83,20 @@ func (rt *RefreshToken) IsExpired() bool {
 func (rt *RefreshToken) IsRevoked() bool {
 	return rt.RevokedAt != nil
 }
+
+// En: LoginCredentialLockout tracks failed password attempts per normalized email for login lockout.
+// Es: LoginCredentialLockout registra intentos fallidos de contraseña por email normalizado para bloqueo de login.
+type LoginCredentialLockout struct {
+	EmailNormalized string     `gorm:"column:email_normalized;primaryKey;size:320" json:"-"`
+	FailedCount     int        `gorm:"not null;default:0" json:"-"`
+	WindowStart     time.Time  `gorm:"not null" json:"-"`
+	LockedUntil     *time.Time `gorm:"index" json:"-"`
+	CreatedAt       time.Time  `json:"-"`
+	UpdatedAt       time.Time  `json:"-"`
+}
+
+// En: TableName overrides the table name.
+// Es: TableName sobrescribe el nombre de la tabla.
+func (LoginCredentialLockout) TableName() string {
+	return "login_credential_lockouts"
+}

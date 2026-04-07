@@ -15,11 +15,18 @@ type TokenRevoker interface {
 	RevokeAllByUserID(userID string) error
 }
 
+// En: LoginCredentialLockoutClearer clears per-email login lockout after a successful password change.
+// Es: LoginCredentialLockoutClearer limpia el bloqueo de login por email tras cambiar la contraseña con éxito.
+type LoginCredentialLockoutClearer interface {
+	ClearLoginCredentialLockout(normalizedEmail string) error
+}
+
 // En: Service handles user business logic.
 // Es: Service maneja la lógica de negocio de usuarios.
 type Service struct {
-	repository   *Repository
-	tokenRevoker TokenRevoker
+	repository          *Repository
+	tokenRevoker        TokenRevoker
+	loginLockoutClearer LoginCredentialLockoutClearer
 }
 
 // En: NewService creates a new user service.
@@ -32,6 +39,13 @@ func NewService(repository *Repository) *Service {
 // Es: WithTokenRevoker establece el revocador de tokens para invalidar refresh tokens al eliminar usuario.
 func (service *Service) WithTokenRevoker(tokenRevoker TokenRevoker) *Service {
 	service.tokenRevoker = tokenRevoker
+	return service
+}
+
+// En: WithLoginCredentialLockoutClearer sets an optional clearer invoked after UpdateUser changes password.
+// Es: WithLoginCredentialLockoutClearer define un limpiador opcional tras cambiar contraseña en UpdateUser.
+func (service *Service) WithLoginCredentialLockoutClearer(c LoginCredentialLockoutClearer) *Service {
+	service.loginLockoutClearer = c
 	return service
 }
 
@@ -82,6 +96,11 @@ func (service *Service) UpdateUser(id string, name *string, password *string) (*
 	}
 	if err := service.repository.Update(user); err != nil {
 		return nil, err
+	}
+	if password != nil && service.loginLockoutClearer != nil {
+		if err := service.loginLockoutClearer.ClearLoginCredentialLockout(user.Email); err != nil {
+			return nil, fmt.Errorf("clear login lockout after password update: %w", err)
+		}
 	}
 	return user, nil
 }

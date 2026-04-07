@@ -36,7 +36,7 @@ const testJWTSecret = "test-secret-key-for-unit-tests-only"
 func SetupAuthHandlerTest(test *testing.T) (*Handler, *Service) {
 	test.Helper()
 	require.NoError(test, database.InitForTesting())
-	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}))
+	require.NoError(test, database.RunMigrations(&user.User{}, &UserAuthProvider{}, &RefreshToken{}, &LoginCredentialLockout{}))
 
 	userRepository := user.NewRepository(database.DB)
 	authRepository := NewRepository(database.DB)
@@ -129,6 +129,37 @@ func TestLoginInvalidPassword(test *testing.T) {
 	assert.Equal(test, fiber.StatusUnauthorized, resp.StatusCode)
 	errResp := DecodeErrorResponse(test, resp.Body)
 	assert.Equal(test, runtimeError.CodeInvalidCredentials, errResp.Error.Code)
+}
+
+// En: TestLoginCredentialsLocked returns 429 when the email is under credential lockout.
+// Es: TestLoginCredentialsLocked devuelve 429 cuando el email está en bloqueo por credenciales.
+func TestLoginCredentialsLocked(test *testing.T) {
+	handler, service := SetupAuthHandlerTest(test)
+	seedVerifiedUser(test, "LockHTTP", "lockhttp@example.com", "rightpass")
+	for range loginCredentialLockoutMaxFailures {
+		_, err := service.Login("lockhttp@example.com", "wrong")
+		require.ErrorIs(test, err, ErrInvalidCredentials)
+	}
+
+	app := fiber.New()
+	app.Post("/auth/login", handler.Login)
+
+	body := strings.NewReader(`{"email":"lockhttp@example.com","password":"rightpass"}`)
+	req := httptest.NewRequest("POST", "/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+	require.NoError(test, err)
+	defer resp.Body.Close()
+
+	assert.Equal(test, fiber.StatusTooManyRequests, resp.StatusCode)
+	ra := resp.Header.Get("Retry-After")
+	require.NotEmpty(test, ra)
+
+	errResp := DecodeErrorResponse(test, resp.Body)
+	assert.Equal(test, runtimeError.CodeCredentialsLocked, errResp.Error.Code)
+	require.NotNil(test, errResp.Error.RetryAfterSeconds)
+	assert.Greater(test, *errResp.Error.RetryAfterSeconds, int64(0))
 }
 
 // En: TestLoginUserNotFound tests the login with a non-existent email.

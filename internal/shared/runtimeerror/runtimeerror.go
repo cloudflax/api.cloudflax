@@ -1,6 +1,10 @@
 package runtimeerror
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"strconv"
+
+	"github.com/gofiber/fiber/v3"
+)
 
 // ErrorCode is a stable, machine-readable error identifier.
 type ErrorCode string
@@ -37,6 +41,7 @@ const (
 // Auth error codes.
 const (
 	CodeInvalidCredentials      ErrorCode = "INVALID_CREDENTIALS"
+	CodeCredentialsLocked       ErrorCode = "CREDENTIALS_LOCKED"
 	CodeUnauthorized            ErrorCode = "UNAUTHORIZED"
 	CodeTokenExpired            ErrorCode = "TOKEN_EXPIRED"
 	CodeTokenInvalid            ErrorCode = "TOKEN_INVALID"
@@ -57,6 +62,8 @@ type APIError struct {
 	Status  int           `json:"status"`
 	TraceID string        `json:"trace_id,omitempty"`
 	Details []ErrorDetail `json:"details,omitempty"`
+	// RetryAfterSeconds is set when the client should wait before retrying (e.g. credential lockout).
+	RetryAfterSeconds *int64 `json:"retry_after_seconds,omitempty"`
 }
 
 // ErrorResponse wraps APIError as the top-level JSON response.
@@ -87,6 +94,25 @@ func RespondWithDetails(c fiber.Ctx, status int, code ErrorCode, message string,
 			Status:  status,
 			TraceID: traceID,
 			Details: details,
+		},
+	})
+}
+
+// RespondCredentialsLocked writes 429 for too many failed credential attempts on an email; sets Retry-After header.
+func RespondCredentialsLocked(c fiber.Ctx, retryAfterSeconds int64) error {
+	if retryAfterSeconds <= 0 {
+		retryAfterSeconds = 1
+	}
+	traceID := c.Get("X-Request-ID")
+	c.Set("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
+	retryPtr := retryAfterSeconds
+	return c.Status(fiber.StatusTooManyRequests).JSON(ErrorResponse{
+		Error: APIError{
+			Code:              CodeCredentialsLocked,
+			Message:           "Too many failed login attempts. Try again later.",
+			Status:            fiber.StatusTooManyRequests,
+			TraceID:           traceID,
+			RetryAfterSeconds: &retryPtr,
 		},
 	})
 }

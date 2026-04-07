@@ -308,6 +308,9 @@ func (service *Service) ResetPassword(rawToken, newPassword string) error {
 	if err := service.repository.RevokeAllByUserID(u.ID); err != nil {
 		return fmt.Errorf("revoke refresh tokens after password reset: %w", err)
 	}
+	if err := service.repository.ClearLoginCredentialLockout(strings.ToLower(strings.TrimSpace(u.Email))); err != nil {
+		return fmt.Errorf("clear login lockout after password reset: %w", err)
+	}
 	return nil
 }
 
@@ -323,15 +326,36 @@ func formatPasswordResetExpiresIn(d time.Duration) string {
 // Es: Login verifica las credenciales y emite un par de tokens en caso de éxito.
 func (service *Service) Login(email, password string) (*TokenPair, error) {
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+
+	lockRemain, err := service.repository.LoginCredentialLockRetryAfter(normalizedEmail)
+	if err != nil {
+		return nil, fmt.Errorf("login credential lockout: %w", err)
+	}
+	if lockRemain > 0 {
+		return nil, &CredentialsLockedError{RetryAfter: lockRemain}
+	}
+
 	u, err := service.userRepository.GetUserByEmail(normalizedEmail)
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		if errors.Is(err, user.ErrNotFound) {
+			if recErr := service.repository.RecordFailedLoginCredentialAttempt(normalizedEmail); recErr != nil {
+				return nil, fmt.Errorf("record failed login: %w", recErr)
+			}
+			return nil, ErrInvalidCredentials
+		}
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 	if !u.CheckPassword(password) {
+		if recErr := service.repository.RecordFailedLoginCredentialAttempt(normalizedEmail); recErr != nil {
+			return nil, fmt.Errorf("record failed login: %w", recErr)
+		}
 		return nil, ErrInvalidCredentials
 	}
 	if !u.IsEmailVerified() {
 		return nil, ErrEmailNotVerified
+	}
+	if err := service.repository.ClearLoginCredentialLockout(normalizedEmail); err != nil {
+		return nil, err
 	}
 	return service.generateTokenPair(u)
 }
