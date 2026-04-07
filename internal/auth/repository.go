@@ -43,6 +43,33 @@ func (repository *Repository) GetByTokenHash(hash string) (*RefreshToken, error)
 	return &token, nil
 }
 
+// En: Transaction runs fn inside a DB transaction.
+// Es: Transaction ejecuta fn dentro de una transacción de BD.
+func (repository *Repository) Transaction(fn func(tx *gorm.DB) error) error {
+	return repository.db.Transaction(fn)
+}
+
+// En: ConsumeRefreshByTokenHash revokes the active refresh row in one atomic UPDATE (avoids double-spend under concurrency).
+// Es: ConsumeRefreshByTokenHash revoca la fila de refresh en un UPDATE atómico (evita doble canje concurrente).
+func (repository *Repository) ConsumeRefreshByTokenHash(tx *gorm.DB, tokenHash string) (*RefreshToken, error) {
+	now := time.Now()
+	result := tx.Model(&RefreshToken{}).
+		Where("token_hash = ? AND revoked_at IS NULL AND expires_at > ?", tokenHash, now).
+		Update("revoked_at", now)
+	if result.Error != nil {
+		return nil, fmt.Errorf("consume refresh token: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return nil, ErrTokenNotFound
+	}
+
+	var rt RefreshToken
+	if err := tx.Where("token_hash = ?", tokenHash).First(&rt).Error; err != nil {
+		return nil, fmt.Errorf("load refresh token after consume: %w", err)
+	}
+	return &rt, nil
+}
+
 // En: Revoke marks a single refresh token as revoked by its ID.
 // Es: Revoca un token de actualización por su ID.
 func (repository *Repository) Revoke(id string) error {

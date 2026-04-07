@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudflax/api.cloudflax/internal/shared/verificationnotify"
 	"github.com/cloudflax/api.cloudflax/internal/user"
+	"gorm.io/gorm"
 )
 
 const (
@@ -46,6 +47,7 @@ type TokenPair struct {
 // Es: UserRepository es el subconjunto del repositorio de usuarios en el que depende el servicio de autenticación.
 type UserRepository interface {
 	GetUser(id string) (*user.User, error)
+	GetUserTx(tx *gorm.DB, id string) (*user.User, error)
 	GetUserByEmail(email string) (*user.User, error)
 	Create(u *user.User) error
 	Update(u *user.User) error
@@ -343,26 +345,35 @@ func (service *Service) RefreshTokens(rawRefreshToken string) (*TokenPair, error
 	}
 
 	tokenHash := hashToken(rawRefreshToken)
-	stored, err := service.repository.GetByTokenHash(tokenHash)
-	if err != nil {
-		return nil, ErrInvalidCredentials
-	}
-	if stored.IsRevoked() || stored.IsExpired() {
-		return nil, ErrInvalidCredentials
-	}
 
-	if err := service.repository.Revoke(stored.ID); err != nil {
-		return nil, fmt.Errorf("revoke old refresh token: %w", err)
-	}
+	var pair *TokenPair
+	err := service.repository.Transaction(func(tx *gorm.DB) error {
+		stored, err := service.repository.ConsumeRefreshByTokenHash(tx, tokenHash)
+		if err != nil {
+			if errors.Is(err, ErrTokenNotFound) {
+				return ErrInvalidCredentials
+			}
+			return err
+		}
 
-	u, err := service.userRepository.GetUser(stored.UserID)
+		u, err := service.userRepository.GetUserTx(tx, stored.UserID)
+		if err != nil {
+			if errors.Is(err, user.ErrNotFound) {
+				return ErrInvalidCredentials
+			}
+			return err
+		}
+		if !u.IsEmailVerified() {
+			return ErrEmailNotVerified
+		}
+
+		pair, err = service.persistTokenPair(tx, u)
+		return err
+	})
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, err
 	}
-	if !u.IsEmailVerified() {
-		return nil, ErrEmailNotVerified
-	}
-	return service.generateTokenPair(u)
+	return pair, nil
 }
 
 // En: Logout revokes all active refresh tokens for the given user.
@@ -400,6 +411,12 @@ func (service *Service) parseAccessToken(tokenString string) (*Claims, error) {
 // En: generateTokenPair creates and stores a new access token and refresh token pair for the given user.
 // Es: generateTokenPair crea y almacena un nuevo par de tokens de acceso y actualización para el usuario dado.
 func (service *Service) generateTokenPair(u *user.User) (*TokenPair, error) {
+	return service.persistTokenPair(service.repository.db, u)
+}
+
+// En: persistTokenPair signs access JWT and inserts refresh metadata using db (or an active transaction).
+// Es: persistTokenPair firma el access JWT e inserta el refresh usando db o una transacción activa.
+func (service *Service) persistTokenPair(db *gorm.DB, u *user.User) (*TokenPair, error) {
 	expiresAt := time.Now().Add(service.accessTokenDuration)
 	accessToken, err := service.signAccessToken(u, expiresAt)
 	if err != nil {
@@ -416,7 +433,7 @@ func (service *Service) generateTokenPair(u *user.User) (*TokenPair, error) {
 		TokenHash: hashToken(rawRefresh),
 		ExpiresAt: time.Now().Add(refreshTokenDuration),
 	}
-	if err := service.repository.Create(refreshRecord); err != nil {
+	if err := db.Create(refreshRecord).Error; err != nil {
 		return nil, fmt.Errorf("store refresh token: %w", err)
 	}
 

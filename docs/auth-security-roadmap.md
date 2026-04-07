@@ -61,7 +61,7 @@ Ajusta el orden si tu frontend o infra obligan otra secuencia; mantén anotado e
 
 | ID   | Tema | Dependencias | Estado | Spec |
 |------|------|--------------|--------|------|
-| **C1** | **Transacción / bloqueo en refresh** (evitar doble canje concurrente del mismo token) | Ninguna crítica | `pending` | `SPEC-C1.md` |
+| **C1** | **Transacción / bloqueo en refresh** (`UPDATE` atómico: revocar + insertar refresh nuevo en una TX) | Ninguna crítica | `done` | `internal/auth/repository.go` `ConsumeRefreshByTokenHash` |
 | **C2** | **Política ante reutilización de refresh** (ej. revocar cadena o todos los refresh del usuario al detectar token ya revocado) | C1 recomendado antes | `pending` | `SPEC-C2.md` |
 
 ---

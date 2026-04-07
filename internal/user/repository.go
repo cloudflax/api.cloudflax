@@ -36,8 +36,14 @@ func (repository *Repository) GetUserByEmail(email string) (*User, error) {
 // En: GetUser returns a user by ID.
 // Es: GetUser devuelve un usuario por ID.
 func (repository *Repository) GetUser(id string) (*User, error) {
+	return repository.GetUserTx(repository.db, id)
+}
+
+// En: GetUserTx returns a user by ID using the given DB handle or transaction.
+// Es: GetUserTx devuelve un usuario por ID usando el manejador o transacción dada.
+func (repository *Repository) GetUserTx(tx *gorm.DB, id string) (*User, error) {
 	var user User
-	if err := repository.db.First(&user, "id = ?", id).Error; err != nil {
+	if err := tx.First(&user, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrNotFound
 		}
