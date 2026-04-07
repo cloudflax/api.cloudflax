@@ -41,7 +41,16 @@ Ajusta el orden si tu frontend o infra obligan otra secuencia; mantén anotado e
 | **A1** | **Endpoint dev**: `ENABLE_AUTH_DEV_ENDPOINTS` + no producción; peek sin reenviar email | Ninguna | `done` | ver `AUTH_INTEGRATION.md` |
 | **A2** | **Throttling Dynamo (fail-open por defecto):** runbook operativo; opcional **`API_THROTTLE_STRICT_INIT`** (fallar arranque si la tabla está definida y un guard no inicializa); opcional **`API_THROTTLE_REQUIRED_IN_PRODUCTION`** (exigir tabla con `APP_ENV=production`); montaje central en **`attachAuthThrottleGuards`** | Config AWS | `done` | [`runbooks/api-throttle-dynamo.md`](./runbooks/api-throttle-dynamo.md); `internal/bootstrap/server/throttle_guards.go`; validación en `internal/bootstrap/config/config.go` |
 | **A3** | **Trust proxy Fiber** (`TRUST_PROXY`, `PROXY_HEADER`, rangos trust) | Infra | `done` | ver `.env.example` |
-| **A4** | **Cabeceras de seguridad** (HSTS delegado a LB, `X-Content-Type-Options`, etc.) | Ninguna | `pending` | `SPEC-A4.md` |
+| **A4** | **Cabeceras de seguridad** (HSTS delegado a LB, `X-Content-Type-Options`, etc.) | Ninguna | `done` | Ver [A4 implementado](#a4--cabeceras-implementación) |
+
+### A4 — Cabeceras (implementación)
+
+- **Código:** [`internal/shared/middleware/securityheaders.go`](../internal/shared/middleware/securityheaders.go) — Fiber [`helmet`](https://github.com/gofiber/fiber/tree/master/middleware/helmet).
+- **Montaje:** [`internal/bootstrap/app/app.go`](../internal/bootstrap/app/app.go): orden `Logger` → `SecurityHeaders` → `CORS` → rutas.
+- **Cabeceras explícitas:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `X-XSS-Protection: 0`, `Cross-Origin-Embedder-Policy: unsafe-none`, `Cross-Origin-Opener-Policy: unsafe-none`, `Cross-Origin-Resource-Policy: cross-origin` (últimas tres relajadas respecto al default de `helmet` para no romper **API + CORS** con frontend en otro origen).
+- **Resto:** el middleware completa otros valores por defecto de `helmet` (`Origin-Agent-Cluster`, `X-DNS-Prefetch-Control`, `X-Download-Options`, `X-Permitted-Cross-Domain-Policies`, etc.).
+- **HSTS:** no se envía `Strict-Transport-Security` desde la app (`HSTSMaxAge: 0`); debe configurarse en el terminador TLS / balanceador.
+- **Pruebas:** [`internal/shared/middleware/securityheaders_test.go`](../internal/shared/middleware/securityheaders_test.go).
 
 ---
 
@@ -109,7 +118,7 @@ Ejemplos:
 
 ## Relación con documentación existente
 
-- Contrato actual front–back: [`AUTH_INTEGRATION.md`](./AUTH_INTEGRATION.md)
+- Contrato actual front–back: [`AUTH_INTEGRATION.md`](./AUTH_INTEGRATION.md) (incluye cabeceras de seguridad en respuesta, A4)
 - Tras cambios de contrato, actualizar ese doc en el mismo PR o inmediatamente después.
 
 ---

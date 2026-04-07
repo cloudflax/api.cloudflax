@@ -25,6 +25,7 @@ func Run(cfg *config.Config) error {
 	app := fiber.New(fiberAppConfig(cfg))
 
 	app.Use(middleware.Logger())
+	app.Use(middleware.SecurityHeaders())
 	app.Use(middleware.CORS(cfg.FrontendURL))
 	if err := server.Mount(app, cfg); err != nil {
 		return err

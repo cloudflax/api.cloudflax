@@ -449,6 +449,26 @@ El origen permitido se toma de **`FRONTEND_URL`** y se aplica en el arranque ví
 
 ---
 
+## Cabeceras de seguridad (respuestas HTTP)
+
+Todas las respuestas pasan por `middleware.SecurityHeaders` en `internal/bootstrap/app/app.go`, antes de CORS (implementación en `internal/shared/middleware/securityheaders.go`, Fiber `helmet`). No cambian el contrato JSON ni las reglas de CORS; endurecen el comportamiento en navegadores.
+
+| Cabecera | Valor (orientativo) |
+|----------|---------------------|
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `no-referrer` |
+| `X-XSS-Protection` | `0` |
+| `Cross-Origin-Embedder-Policy` | `unsafe-none` |
+| `Cross-Origin-Opener-Policy` | `unsafe-none` |
+| `Cross-Origin-Resource-Policy` | `cross-origin` |
+
+Pueden aparecer además otras cabeceras que añade la configuración por defecto de `helmet` (p. ej. `Origin-Agent-Cluster`, `X-DNS-Prefetch-Control`). **No** se envía `Strict-Transport-Security` desde esta API: conviene configurar **HSTS** en el balanceador o en el punto de terminación TLS.
+
+Roadmap: ítem **A4** en [`docs/auth-security-roadmap.md`](./auth-security-roadmap.md).
+
+---
+
 ## Checklist de integración
 
 ### Backend (completado)
@@ -462,3 +482,4 @@ El origen permitido se toma de **`FRONTEND_URL`** y se aplica en el arranque ví
 - [x] Refresh token rotation — el token anterior se invalida al renovar
 - [x] Refresh tokens en DB — tabla `refresh_tokens` con hash SHA-256
 - [x] CORS — origen desde `FRONTEND_URL`
+- [x] Cabeceras de seguridad HTTP — middleware global (`SecurityHeaders`, A4)
