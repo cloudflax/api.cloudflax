@@ -39,7 +39,7 @@ Ajusta el orden si tu frontend o infra obligan otra secuencia; mantén anotado e
 | ID   | Tema | Dependencias | Estado | Spec |
 |------|------|--------------|--------|------|
 | **A1** | **Endpoint dev**: `ENABLE_AUTH_DEV_ENDPOINTS` + no producción; peek sin reenviar email | Ninguna | `done` | ver `AUTH_INTEGRATION.md` |
-| **A2** | **Throttling “fail-open”**: documentar en runbook; opcionalmente fallar cerrado o alertar si falta tabla Dynamo | Config AWS | `pending` | `SPEC-A2.md` |
+| **A2** | **Throttling Dynamo (fail-open por defecto):** runbook operativo; opcional **`API_THROTTLE_STRICT_INIT`** (fallar arranque si la tabla está definida y un guard no inicializa); opcional **`API_THROTTLE_REQUIRED_IN_PRODUCTION`** (exigir tabla con `APP_ENV=production`); montaje central en **`attachAuthThrottleGuards`** | Config AWS | `done` | [`runbooks/api-throttle-dynamo.md`](./runbooks/api-throttle-dynamo.md); `internal/bootstrap/server/throttle_guards.go`; validación en `internal/bootstrap/config/config.go` |
 | **A3** | **Trust proxy Fiber** (`TRUST_PROXY`, `PROXY_HEADER`, rangos trust) | Infra | `done` | ver `.env.example` |
 | **A4** | **Cabeceras de seguridad** (HSTS delegado a LB, `X-Content-Type-Options`, etc.) | Ninguna | `pending` | `SPEC-A4.md` |
 

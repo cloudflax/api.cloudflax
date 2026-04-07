@@ -54,6 +54,10 @@ type Config struct {
 	// Forgot-password email is sent by a dedicated Lambda (async), same invocation style as verification.
 	LambdaSendForgotPasswordEmailName string
 	APIThrottleTableName              string
+	// APIThrottleStrictInit fails server startup when API_THROTTLE_TABLE_NAME is set but a Dynamo throttle guard cannot initialize.
+	APIThrottleStrictInit bool
+	// APIThrottleRequiredInProduction requires a non-empty API_THROTTLE_TABLE_NAME when APP_ENV is production.
+	APIThrottleRequiredInProduction bool
 
 	// JWTAccessTokenDuration is the signed JWT access token lifetime.
 	JWTAccessTokenDuration time.Duration
@@ -97,8 +101,10 @@ func Load() (*Config, error) {
 		SESEndpointURL:            getEnv("SES_ENDPOINT_URL", ""),
 		LambdaSendVerifyEmailName:             getEnv("LAMBDA_SEND_VERIFY_EMAIL_NAME", ""),
 		LambdaSendForgotPasswordEmailName:     getEnv("LAMBDA_SEND_FORGOT_PASSWORD_EMAIL_NAME", ""),
-		APIThrottleTableName:                  getEnv("API_THROTTLE_TABLE_NAME", ""),
-		JWTAccessTokenDuration:    jwtAccessTokenDurationFromEnv(),
+		APIThrottleTableName:            getEnv("API_THROTTLE_TABLE_NAME", ""),
+		APIThrottleStrictInit:           envBool("API_THROTTLE_STRICT_INIT", false),
+		APIThrottleRequiredInProduction: envBool("API_THROTTLE_REQUIRED_IN_PRODUCTION", false),
+		JWTAccessTokenDuration:          jwtAccessTokenDurationFromEnv(),
 	}
 
 	secretName := getEnv("AWS_SECRET_NAME", "")
@@ -187,6 +193,10 @@ func (c *Config) Validate() error {
 	// Reject ENABLE_AUTH_DEV_ENDPOINTS with APP_ENV=production (routes already omit /auth/dev in that case).
 	if strings.EqualFold(strings.TrimSpace(c.AppEnv), "production") && c.EnableAuthDevEndpoints {
 		return fmt.Errorf("ENABLE_AUTH_DEV_ENDPOINTS must be false or unset when APP_ENV is production")
+	}
+	if c.APIThrottleRequiredInProduction && strings.EqualFold(strings.TrimSpace(c.AppEnv), "production") &&
+		strings.TrimSpace(c.APIThrottleTableName) == "" {
+		return fmt.Errorf("API_THROTTLE_TABLE_NAME is required when APP_ENV is production and API_THROTTLE_REQUIRED_IN_PRODUCTION is true")
 	}
 	return nil
 }

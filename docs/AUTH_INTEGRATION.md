@@ -416,7 +416,9 @@ export async function POST() {
 | `PROXY_HEADER` | Cabecera de IP del cliente cuando `TRUST_PROXY=true`. | `X-Forwarded-For` |
 | `TRUST_PROXY_TRUST_PRIVATE` | Confiar en proxies en rangos RFC1918 (típico detrás de ALB en VPC). | `true` |
 | `TRUST_PROXY_TRUST_LOOPBACK` | Confiar en loopback (útil en algunos setups locales con proxy). | `false` |
-| `API_THROTTLE_TABLE_NAME` | Tabla DynamoDB para límites: resend, forgot-password, **login y refresh por IP**. Vacío → esos throttles desactivados. | — |
+| `API_THROTTLE_TABLE_NAME` | Tabla DynamoDB para límites: resend, forgot-password, **login y refresh por IP**. Vacío → esos throttles desactivados (fail-open). | — |
+| `API_THROTTLE_REQUIRED_IN_PRODUCTION` | Con `APP_ENV=production` y `true`, exige `API_THROTTLE_TABLE_NAME` no vacío (fallo en arranque si falta). | `false` |
+| `API_THROTTLE_STRICT_INIT` | Con tabla configurada y `true`, un error al crear el cliente Dynamo o inicializar un guard de throttle hace fallar el arranque (en lugar de seguir sin ese throttle). | `false` |
 
 ### Frontend (Next.js)
 

@@ -26,7 +26,9 @@ func Run(cfg *config.Config) error {
 
 	app.Use(middleware.Logger())
 	app.Use(middleware.CORS(cfg.FrontendURL))
-	server.Mount(app, cfg)
+	if err := server.Mount(app, cfg); err != nil {
+		return err
+	}
 
 	return app.Listen(":" + cfg.Port)
 }

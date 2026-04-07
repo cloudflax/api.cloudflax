@@ -124,3 +124,44 @@ func TestConfigValidateProductionVsAuthDevEndpoints(t *testing.T) {
 		assert.NoError(t, cfg.Validate())
 	})
 }
+
+func TestConfigValidateAPIThrottleRequiredInProduction(t *testing.T) {
+	base := Config{
+		Port:                   "3000",
+		JWTSecret:              "x",
+		DBHost:                 "h",
+		DBUser:                 "u",
+		DBName:                 "n",
+		JWTAccessTokenDuration: 15 * time.Minute,
+	}
+	t.Run("production requires table when flag set", func(t *testing.T) {
+		cfg := base
+		cfg.AppEnv = "production"
+		cfg.APIThrottleRequiredInProduction = true
+		cfg.APIThrottleTableName = ""
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "API_THROTTLE_TABLE_NAME")
+	})
+	t.Run("production with table set is ok", func(t *testing.T) {
+		cfg := base
+		cfg.AppEnv = "production"
+		cfg.APIThrottleRequiredInProduction = true
+		cfg.APIThrottleTableName = "throttle-table"
+		assert.NoError(t, cfg.Validate())
+	})
+	t.Run("production empty table without flag is ok", func(t *testing.T) {
+		cfg := base
+		cfg.AppEnv = "production"
+		cfg.APIThrottleRequiredInProduction = false
+		cfg.APIThrottleTableName = ""
+		assert.NoError(t, cfg.Validate())
+	})
+	t.Run("staging empty table with flag is ok", func(t *testing.T) {
+		cfg := base
+		cfg.AppEnv = "staging"
+		cfg.APIThrottleRequiredInProduction = true
+		cfg.APIThrottleTableName = ""
+		assert.NoError(t, cfg.Validate())
+	})
+}

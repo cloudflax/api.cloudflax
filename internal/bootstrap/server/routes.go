@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -17,7 +18,7 @@ import (
 )
 
 // Mount mounts all routes on the Fiber app.
-func Mount(app *fiber.App, cfg *config.Config) {
+func Mount(app *fiber.App, cfg *config.Config) error {
 	app.Get("/", Home)
 	app.Get("/health", Health())
 
@@ -37,52 +38,10 @@ func Mount(app *fiber.App, cfg *config.Config) {
 		AccessTokenDuration:   cfg.JWTAccessTokenDuration,
 	})
 	authHandler := auth.NewHandler(authService)
-	throttleOpts := auth.DynamoResendVerificationGuardOptions{
-		TableName:       cfg.APIThrottleTableName,
-		EndpointURL:     cfg.AWSEndpointURL,
-		Region:          cfg.AWSRegion,
-		Profile:         cfg.AWSProfile,
-		AccessKeyID:     cfg.AWSAccessKeyID,
-		SecretAccessKey: cfg.AWSSecretAccessKey,
-	}
-	resendGuard, err := auth.NewDynamoResendVerificationGuard(context.Background(), throttleOpts)
+	var err error
+	authHandler, err = attachAuthThrottleGuards(authHandler, cfg)
 	if err != nil {
-		slog.Warn("failed to initialise resend verification guard", "error", err)
-	} else if resendGuard != nil {
-		authHandler = authHandler.WithResendVerificationGuard(resendGuard)
-	}
-	forgotGuard, err := auth.NewDynamoForgotPasswordGuard(context.Background(), auth.DynamoForgotPasswordGuardOptions{
-		TableName:       cfg.APIThrottleTableName,
-		EndpointURL:     cfg.AWSEndpointURL,
-		Region:          cfg.AWSRegion,
-		Profile:         cfg.AWSProfile,
-		AccessKeyID:     cfg.AWSAccessKeyID,
-		SecretAccessKey: cfg.AWSSecretAccessKey,
-	})
-	if err != nil {
-		slog.Warn("failed to initialise forgot-password guard", "error", err)
-	} else if forgotGuard != nil {
-		authHandler = authHandler.WithForgotPasswordGuard(forgotGuard)
-	}
-	ipThrottleOpts := auth.DynamoIPThrottleGuardOptions{
-		TableName:       cfg.APIThrottleTableName,
-		EndpointURL:     cfg.AWSEndpointURL,
-		Region:          cfg.AWSRegion,
-		Profile:         cfg.AWSProfile,
-		AccessKeyID:     cfg.AWSAccessKeyID,
-		SecretAccessKey: cfg.AWSSecretAccessKey,
-	}
-	loginThrottle, err := auth.NewDynamoLoginIPThrottleGuard(context.Background(), ipThrottleOpts)
-	if err != nil {
-		slog.Warn("failed to initialise login IP throttle guard", "error", err)
-	} else if loginThrottle != nil {
-		authHandler = authHandler.WithLoginIPThrottleGuard(loginThrottle)
-	}
-	refreshThrottle, err := auth.NewDynamoRefreshIPThrottleGuard(context.Background(), ipThrottleOpts)
-	if err != nil {
-		slog.Warn("failed to initialise refresh IP throttle guard", "error", err)
-	} else if refreshThrottle != nil {
-		authHandler = authHandler.WithRefreshIPThrottleGuard(refreshThrottle)
+		return fmt.Errorf("auth throttle guards: %w", err)
 	}
 	requireAuth := middleware.RequireAuth(authService)
 	mountDev := cfg.EnableAuthDevEndpoints && !strings.EqualFold(cfg.AppEnv, "production")
@@ -102,6 +61,7 @@ func Mount(app *fiber.App, cfg *config.Config) {
 	invoiceService := invoice.NewService(invoiceRepository)
 	invoiceHandler := invoice.NewHandler(invoiceService)
 	invoice.Routes(app, invoiceHandler, requireAuth, requireAccountMember)
+	return nil
 }
 
 // accountListerAdapter adapts the account.Service to the user.AccountLister interface.
